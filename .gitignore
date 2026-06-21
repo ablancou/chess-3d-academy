@@ -20,6 +20,9 @@
 # production
 /build
 
+# private project notes (vision, roadmap — local only)
+PROJECT.md
+
 # misc
 .DS_Store
 *.pem
