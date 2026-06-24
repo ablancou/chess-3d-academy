@@ -1,15 +1,21 @@
 "use client";
 
 import { MousePointerClick, Move3d, ZoomIn } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function ControlsOverlay() {
   const [dismissed, setDismissed] = useState(false);
 
+  useEffect(() => {
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      setDismissed(true);
+    }
+  }, []);
+
   if (dismissed) return null;
 
   return (
-    <div className="pointer-events-none absolute bottom-6 left-6 z-10 max-w-sm">
+    <div className="pointer-events-none absolute bottom-4 left-4 z-10 max-w-xs md:bottom-6 md:left-6 md:max-w-sm">
       <div className="pointer-events-auto rounded-xl border border-indigo-500/25 bg-[#0a0f1e]/85 p-4 shadow-2xl shadow-indigo-500/10 backdrop-blur-xl">
         <p className="mb-3 font-heading text-sm font-semibold text-white">
           Cómo mover las piezas

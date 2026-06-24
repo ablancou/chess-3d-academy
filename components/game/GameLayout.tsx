@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import dynamic from "next/dynamic";
+import { installChessTestBridge } from "@/lib/chess/test-bridge";
 import { ControlsOverlay } from "@/components/game/ControlsOverlay";
 import { PromotionPicker } from "@/components/game/PromotionPicker";
 import { GameSidebar } from "@/components/sidebar/GameSidebar";
@@ -27,9 +29,13 @@ const ChessScene = dynamic(
 );
 
 export function GameLayout() {
+  useEffect(() => {
+    installChessTestBridge();
+  }, []);
+
   return (
-    <div className="flex h-screen w-full flex-col overflow-hidden bg-[#030712] md:flex-row">
-      <main className="relative min-h-0 flex-1">
+    <div className="flex h-[100dvh] w-full flex-col overflow-hidden bg-[#030712] md:flex-row max-md:landscape:flex-row">
+      <main className="relative order-1 min-h-[55dvh] min-w-0 flex-1 md:min-h-0 max-md:landscape:min-h-0">
         <ChessScene />
         <ControlsOverlay />
         <PromotionPicker />

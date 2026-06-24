@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Chess } from "chess.js";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -49,7 +49,7 @@ function capturePose(camera: Camera, controls: OrbitControlsImpl): CameraPose {
 
 function applyPose(
   camera: Camera,
-  controls: OrbitControlsImpl,
+  controls: OrbitControlsImpl | null,
   pose: CameraPose,
   tmpPos: Vector3,
   tmpTarget: Vector3,
@@ -57,8 +57,8 @@ function applyPose(
   vec3ToVector3(pose.position, tmpPos);
   vec3ToVector3(pose.target, tmpTarget);
   camera.position.copy(tmpPos);
-  controls.target.copy(tmpTarget);
-  controls.update();
+  if (controls) controls.target.copy(tmpTarget);
+  camera.lookAt(tmpTarget);
 }
 
 function interpolatePose(from: CameraPose, to: CameraPose, t: number): CameraPose {
@@ -77,6 +77,18 @@ function interpolatePose(from: CameraPose, to: CameraPose, t: number): CameraPos
   };
 }
 
+function resetAnimState(
+  phase: React.RefObject<AnimPhase>,
+  savedPose: React.RefObject<CameraPose | null>,
+  fromPose: React.RefObject<CameraPose | null>,
+  toPose: React.RefObject<CameraPose | null>,
+) {
+  phase.current = "idle";
+  savedPose.current = null;
+  fromPose.current = null;
+  toPose.current = null;
+}
+
 export function useCameraAnimation({
   controlsRef,
   spectacularMode,
@@ -86,71 +98,75 @@ export function useCameraAnimation({
   turn,
   chessFen,
   autoRotate = false,
-}: UseCameraAnimationOptions) {
+}: UseCameraAnimationOptions): { userControlsEnabled: boolean } {
   const { camera, clock } = useThree();
+  const [userControlsEnabled, setUserControlsEnabled] = useState(true);
   const phase = useRef<AnimPhase>("idle");
   const phaseStart = useRef(0);
   const savedPose = useRef<CameraPose | null>(null);
   const fromPose = useRef<CameraPose | null>(null);
   const toPose = useRef<CameraPose | null>(null);
   const lastHandledTimestamp = useRef(0);
+  const pendingCheck = useRef(false);
+  const prevSpectacular = useRef(spectacularMode);
   const tmpPos = useRef(new Vector3());
   const tmpTarget = useRef(new Vector3());
 
   const beginSequence = (targetPose: CameraPose, nextPhase: AnimPhase) => {
     const controls = controlsRef.current;
-    if (!controls) return;
-    savedPose.current = capturePose(camera, controls);
-    fromPose.current = savedPose.current;
+    fromPose.current = controls
+      ? capturePose(camera, controls)
+      : {
+          position: [camera.position.x, camera.position.y, camera.position.z],
+          target: [0, 0, 0],
+        };
     toPose.current = targetPose;
     phase.current = nextPhase;
     phaseStart.current = clock.elapsedTime;
-    controls.enabled = false;
+    setUserControlsEnabled(false);
   };
+
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls || autoRotate) return;
+
+    if (prevSpectacular.current !== spectacularMode) {
+      resetAnimState(phase, savedPose, fromPose, toPose);
+      pendingCheck.current = false;
+      lastHandledTimestamp.current = 0;
+
+      setUserControlsEnabled(!spectacularMode);
+      prevSpectacular.current = spectacularMode;
+    }
+  }, [spectacularMode, autoRotate, controlsRef, camera, clock]);
 
   useEffect(() => {
     if (autoRotate || !lastMove || moveTimestamp === 0) return;
     if (moveTimestamp === lastHandledTimestamp.current) return;
     lastHandledTimestamp.current = moveTimestamp;
+    pendingCheck.current = spectacularMode && status === "check";
 
-    if (spectacularMode) {
-      beginSequence(dramaticMovePose(lastMove.to), "move");
-      return;
+    if (!savedPose.current && !spectacularMode) {
+      const controls = controlsRef.current;
+      if (controls) savedPose.current = capturePose(camera, controls);
     }
 
     beginSequence(dramaticMovePose(lastMove.to), "move");
-  }, [moveTimestamp, lastMove, spectacularMode, autoRotate, camera, clock, controlsRef]);
-
-  const lastCheckTimestamp = useRef(0);
-
-  useEffect(() => {
-    if (autoRotate || !spectacularMode || status !== "check") return;
-    if (moveTimestamp === 0 || moveTimestamp === lastCheckTimestamp.current) return;
-    lastCheckTimestamp.current = moveTimestamp;
-
-    try {
-      const chess = new Chess(chessFen);
-      const kingSquare = findKingSquare(chess, turn);
-      if (kingSquare) {
-        beginSequence(checkCloseUpPose(kingSquare), "check");
-      }
-    } catch {
-      /* invalid fen — skip */
-    }
-  }, [status, spectacularMode, moveTimestamp, turn, chessFen, autoRotate, camera, clock, controlsRef]);
+  }, [moveTimestamp, lastMove, spectacularMode, status, autoRotate, camera, clock, controlsRef]);
 
   useFrame(() => {
     const controls = controlsRef.current;
     if (!controls || autoRotate) return;
 
     if (spectacularMode) {
-      controls.enabled = false;
-      controls.enableRotate = false;
-      controls.enableZoom = false;
-
       if (phase.current === "idle") {
-        const orbit = spectacularOrbitPose(clock.elapsedTime);
-        applyPose(camera, controls, orbit, tmpPos.current, tmpTarget.current);
+        applyPose(
+          camera,
+          controls,
+          spectacularOrbitPose(clock.elapsedTime),
+          tmpPos.current,
+          tmpTarget.current,
+        );
         return;
       }
 
@@ -160,14 +176,28 @@ export function useCameraAnimation({
 
       if (fromPose.current && toPose.current) {
         const t = Math.min(1, elapsed / duration);
-        const pose = interpolatePose(
-          fromPose.current,
-          toPose.current,
-          easeOutCubic(t),
+        applyPose(
+          camera,
+          controls,
+          interpolatePose(fromPose.current, toPose.current, easeOutCubic(t)),
+          tmpPos.current,
+          tmpTarget.current,
         );
-        applyPose(camera, controls, pose, tmpPos.current, tmpTarget.current);
 
         if (t >= 1) {
+          if (phase.current === "move" && pendingCheck.current) {
+            pendingCheck.current = false;
+            try {
+              const chess = new Chess(chessFen);
+              const kingSquare = findKingSquare(chess, turn);
+              if (kingSquare) {
+                beginSequence(checkCloseUpPose(kingSquare), "check");
+                return;
+              }
+            } catch {
+              /* skip */
+            }
+          }
           phase.current = "idle";
           fromPose.current = null;
           toPose.current = null;
@@ -176,11 +206,8 @@ export function useCameraAnimation({
       return;
     }
 
-    controls.enableRotate = true;
-    controls.enableZoom = true;
-
     if (phase.current === "idle") {
-      controls.enabled = true;
+      if (!userControlsEnabled) setUserControlsEnabled(true);
       return;
     }
 
@@ -188,12 +215,13 @@ export function useCameraAnimation({
 
     if (phase.current === "move" && fromPose.current && toPose.current) {
       const t = Math.min(1, elapsed / MOVE_ANIM_DURATION);
-      const pose = interpolatePose(
-        fromPose.current,
-        toPose.current,
-        easeOutCubic(t),
+      applyPose(
+        camera,
+        controls,
+        interpolatePose(fromPose.current, toPose.current, easeOutCubic(t)),
+        tmpPos.current,
+        tmpTarget.current,
       );
-      applyPose(camera, controls, pose, tmpPos.current, tmpTarget.current);
 
       if (t >= 1) {
         phase.current = "restore";
@@ -206,20 +234,21 @@ export function useCameraAnimation({
 
     if (phase.current === "restore" && fromPose.current && toPose.current) {
       const t = Math.min(1, elapsed / RESTORE_DURATION);
-      const pose = interpolatePose(
-        fromPose.current,
-        toPose.current,
-        easeInOutCubic(t),
+      applyPose(
+        camera,
+        controls,
+        interpolatePose(fromPose.current, toPose.current, easeInOutCubic(t)),
+        tmpPos.current,
+        tmpTarget.current,
       );
-      applyPose(camera, controls, pose, tmpPos.current, tmpTarget.current);
 
       if (t >= 1) {
-        phase.current = "idle";
-        controls.enabled = true;
-        savedPose.current = null;
-        fromPose.current = null;
-        toPose.current = null;
+        resetAnimState(phase, savedPose, fromPose, toPose);
+        setUserControlsEnabled(true);
+        controlsRef.current?.update();
       }
     }
   });
+
+  return { userControlsEnabled: spectacularMode ? false : userControlsEnabled };
 }

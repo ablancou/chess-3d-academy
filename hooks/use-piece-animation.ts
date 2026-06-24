@@ -1,14 +1,17 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import type { Group } from "three";
 import { Vector3 } from "three";
 import type { Square } from "chess.js";
+import { resolvePieceStartPosition } from "@/lib/chess/piece-animation-math";
 import { squareToPosition } from "@/lib/chess/coordinates";
 import type { LastMove } from "@/lib/chess/types";
 
 const TRAIL_MAX = 18;
+const ARRIVE_THRESHOLD = 0.02;
+const STILL_FRAMES_TO_STOP = 8;
 
 interface UsePieceAnimationOptions {
   groupRef: React.RefObject<Group | null>;
@@ -24,50 +27,58 @@ export function usePieceAnimation({
   lift,
 }: UsePieceAnimationOptions) {
   const position = useRef(new Vector3());
-  const initialized = useRef(false);
+  const target = useRef(new Vector3());
   const trailPoints = useRef<Vector3[]>([]);
-  const [isMoving, setIsMoving] = useState(false);
+  const isMoving = useRef(false);
   const stillFrames = useRef(0);
+  const lastProcessedMove = useRef<string | null>(null);
 
   const [targetX, , targetZ] = squareToPosition(square);
 
   useLayoutEffect(() => {
-    if (!initialized.current) {
-      const [x, , z] = squareToPosition(square);
-      position.current.set(x, lift, z);
-      initialized.current = true;
-      return;
-    }
+    const resolved = resolvePieceStartPosition(
+      square,
+      lastMove,
+      lift,
+      lastProcessedMove.current,
+    );
 
-    if (lastMove?.to === square) {
-      const [fromX, , fromZ] = squareToPosition(lastMove.from);
-      position.current.set(fromX, lift, fromZ);
+    target.current.set(targetX, lift, targetZ);
+    position.current.set(resolved.x, resolved.y, resolved.z);
+
+    if (resolved.shouldAnimate && resolved.moveKey) {
       trailPoints.current = [position.current.clone()];
-      setIsMoving(true);
+      isMoving.current = true;
       stillFrames.current = 0;
+      lastProcessedMove.current = resolved.moveKey;
+    } else if (!isMoving.current) {
+      trailPoints.current = [];
     }
-  }, [square, lastMove, lift]);
+  }, [square, lastMove, lift, targetX, targetZ]);
 
   useFrame((_, delta) => {
     const group = groupRef.current;
     if (!group) return;
 
-    const target = new Vector3(targetX, lift, targetZ);
-    position.current.lerp(target, 1 - Math.exp(-14 * delta));
+    target.current.set(targetX, lift, targetZ);
+    position.current.lerp(target.current, 1 - Math.exp(-14 * delta));
     group.position.copy(position.current);
 
-    const dist = position.current.distanceTo(target);
-    if (dist > 0.02) {
-      setIsMoving(true);
+    const dist = position.current.distanceTo(target.current);
+    if (dist > ARRIVE_THRESHOLD) {
+      isMoving.current = true;
       stillFrames.current = 0;
-      trailPoints.current.push(position.current.clone());
-      if (trailPoints.current.length > TRAIL_MAX) {
-        trailPoints.current.shift();
+      const pts = trailPoints.current;
+      const last = pts[pts.length - 1];
+      if (!last || last.distanceTo(position.current) > 0.008) {
+        pts.push(position.current.clone());
+        if (pts.length > TRAIL_MAX) pts.shift();
       }
     } else {
       stillFrames.current++;
-      if (stillFrames.current > 8 && isMoving) {
-        setIsMoving(false);
+      if (stillFrames.current > STILL_FRAMES_TO_STOP && isMoving.current) {
+        isMoving.current = false;
+        trailPoints.current = [];
       }
     }
   });

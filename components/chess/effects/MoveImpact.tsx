@@ -17,7 +17,8 @@ const PARTICLE_COUNT = 24;
 const DURATION = 1.2;
 
 function ImpactBurst({ square, color }: { square: Square; color: string }) {
-  const groupRef = useRef<Group>(null);
+  const particlesRef = useRef<Group>(null);
+  const ringRef = useRef<Mesh>(null);
   const bornAt = useRef<number | null>(null);
 
   const particles = useMemo(() => {
@@ -32,46 +33,62 @@ function ImpactBurst({ square, color }: { square: Square; color: string }) {
   const [x, , z] = squareToPosition(square);
 
   useFrame(({ clock }) => {
-    if (!groupRef.current) return;
     if (bornAt.current === null) bornAt.current = clock.elapsedTime;
     const elapsed = clock.elapsedTime - bornAt.current;
     if (elapsed > DURATION) {
-      groupRef.current.visible = false;
+      if (particlesRef.current) particlesRef.current.visible = false;
+      if (ringRef.current) ringRef.current.visible = false;
       return;
     }
 
     const progress = elapsed / DURATION;
     const fade = 1 - progress;
 
-    groupRef.current.children.forEach((child, i) => {
-      const p = particles[i];
-      child.position.set(
-        Math.cos(p.angle) * p.speed * progress,
-        0.08 + p.ySpeed * progress * (1 - progress * 0.5),
-        Math.sin(p.angle) * p.speed * progress,
-      );
-      const scale = p.size * fade * 2;
-      child.scale.setScalar(scale);
-      const mat = (child as Mesh).material as { opacity: number };
-      if (mat) mat.opacity = fade * 0.9;
-    });
+    const group = particlesRef.current;
+    if (group) {
+      group.children.forEach((child, i) => {
+        const p = particles[i];
+        if (!p) return;
+        child.position.set(
+          Math.cos(p.angle) * p.speed * progress,
+          0.08 + p.ySpeed * progress * (1 - progress * 0.5),
+          Math.sin(p.angle) * p.speed * progress,
+        );
+        const scale = p.size * fade * 2;
+        child.scale.setScalar(scale);
+        const mat = (child as Mesh).material as { opacity: number };
+        if (mat) mat.opacity = fade * 0.9;
+      });
+    }
+
+    if (ringRef.current) {
+      ringRef.current.scale.setScalar(1 + progress * 0.6);
+      const mat = ringRef.current.material as { opacity: number };
+      if (mat) mat.opacity = fade * 0.6;
+    }
   });
 
   return (
-    <group ref={groupRef} position={[x, 0, z]}>
-      {particles.map((p, i) => (
-        <mesh key={i}>
-          <sphereGeometry args={[1, 8, 8]} />
-          <meshBasicMaterial
-            color={color}
-            transparent
-            opacity={0.9}
-            blending={AdditiveBlending}
-            depthWrite={false}
-          />
-        </mesh>
-      ))}
-      <mesh position={[0, 0.07, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+    <group position={[x, 0, z]}>
+      <group ref={particlesRef}>
+        {particles.map((_, i) => (
+          <mesh key={i}>
+            <sphereGeometry args={[1, 8, 8]} />
+            <meshBasicMaterial
+              color={color}
+              transparent
+              opacity={0.9}
+              blending={AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+        ))}
+      </group>
+      <mesh
+        ref={ringRef}
+        position={[0, 0.07, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+      >
         <ringGeometry args={[0.1, 0.35, 48]} />
         <meshBasicMaterial
           color={color}

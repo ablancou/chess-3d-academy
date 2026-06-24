@@ -32,7 +32,7 @@ export function GameSidebar() {
   const toggleSpectacular = useGameStore((s) => s.toggleSpectacular);
 
   return (
-    <aside className="flex h-auto max-h-[45vh] w-full shrink-0 flex-col border-t border-border bg-card md:h-full md:max-h-none md:w-[24rem] md:border-t-0 md:border-l">
+    <aside className="order-2 flex max-h-[45dvh] w-full shrink-0 flex-col overflow-hidden border-t border-border bg-card md:order-none md:h-full md:max-h-none md:w-[24rem] md:border-t-0 md:border-l max-md:landscape:max-h-none max-md:landscape:w-[17rem]">
       <div className="border-b border-border px-6 py-5">
         <Link
           href="/"
@@ -49,7 +49,7 @@ export function GameSidebar() {
         </p>
       </div>
 
-      <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
         <GuidePanel />
         <LessonPanel />
 

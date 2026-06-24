@@ -2,13 +2,12 @@
 
 import { useRef, useState } from "react";
 import type { Color, PieceSymbol, Square } from "chess.js";
-import type { ThreeEvent } from "@react-three/fiber";
 import type { Group } from "three";
 import { usePieceAnimation } from "@/hooks/use-piece-animation";
 import type { PieceThemeConfig } from "@/lib/chess/themes";
 import { useGameStore } from "@/stores/game-store";
 import { PieceAura } from "./effects/PieceAura";
-import { PieceTrail } from "./effects/PieceTrail";
+import { SimplePieceTrail } from "./effects/SimplePieceTrail";
 import { PieceHitBox } from "./InteractionPlane";
 import { PieceGeometry } from "./piece-geometries";
 
@@ -53,10 +52,10 @@ export function ChessPiece({
     <group ref={groupRef}>
       <PieceHitBox onSelect={handleSelect} />
 
-      <PieceTrail
+      <SimplePieceTrail
         trailRef={trailPoints}
+        isMovingRef={isMoving}
         color={pieceTheme.selectionRing}
-        active={isMoving}
       />
 
       <group

@@ -36,7 +36,7 @@ function SceneContent({
   const turn = useGameStore((s) => s.turn);
   const fen = useGameStore((s) => s.fen);
 
-  useCameraAnimation({
+  const { userControlsEnabled } = useCameraAnimation({
     controlsRef,
     spectacularMode: spectacularMode && !autoRotate,
     lastMove,
@@ -77,16 +77,19 @@ function SceneContent({
         resolution={2048}
       />
 
-      <OrbitControls
-        ref={controlsRef}
-        makeDefault
-        enablePan={false}
-        minDistance={autoRotate ? 10 : 8}
-        maxDistance={autoRotate ? 18 : 20}
-        minPolarAngle={Math.PI / 6}
-        maxPolarAngle={Math.PI / 2.15}
-        target={[0, 0, 0]}
-      />
+      {(userControlsEnabled || autoRotate) && (
+        <OrbitControls
+          ref={controlsRef}
+          makeDefault
+          enabled={!autoRotate}
+          enablePan={false}
+          minDistance={autoRotate ? 10 : 8}
+          maxDistance={autoRotate ? 18 : 20}
+          minPolarAngle={Math.PI / 6}
+          maxPolarAngle={Math.PI / 2.15}
+          target={[0, 0, 0]}
+        />
+      )}
 
       {showEffects && <SceneEffects />}
     </>

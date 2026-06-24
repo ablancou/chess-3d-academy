@@ -3,6 +3,7 @@
 import { Chess } from "chess.js";
 import type { Square } from "chess.js";
 import { indexToSquare, isLightSquare } from "@/lib/chess/coordinates";
+import { getEnPassantCaptureSquare } from "@/lib/chess/en-passant";
 import { findKingSquare } from "@/lib/chess/move-logic";
 import { getThemeById } from "@/lib/chess/themes";
 import { useGameStore } from "@/stores/game-store";
@@ -15,6 +16,7 @@ import { GuideArrow } from "./GuideArrow";
 import { BoardAura } from "./effects/BoardAura";
 import { CastleBurst } from "./effects/CastleBurst";
 import { CheckPulse } from "./effects/CheckPulse";
+import { EnPassantBurst } from "./effects/EnPassantBurst";
 import { MoveImpact } from "./effects/MoveImpact";
 
 export function ChessBoard() {
@@ -63,6 +65,17 @@ export function ChessBoard() {
           moveKey={`${lastMove.from}-${lastMove.to}-${moveTimestamp}`}
         />
       )}
+
+      {lastMove?.isEnPassant && (() => {
+        const cap = getEnPassantCaptureSquare(lastMove);
+        return cap ? (
+          <EnPassantBurst
+            captureSquare={cap}
+            color="#f97316"
+            moveKey={`ep-${lastMove.from}-${lastMove.to}-${moveTimestamp}`}
+          />
+        ) : null;
+      })()}
 
       {checkedKingSquare && (
         <CheckPulse square={checkedKingSquare} active />
