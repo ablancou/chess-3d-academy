@@ -34,28 +34,50 @@ export function SceneLighting({ scene }: SceneLightingProps) {
 
       <directionalLight
         position={[0, 6, 10]}
-        intensity={0.15}
+        intensity={0.22}
         color={scene.rimLightColor}
       />
 
-      <Environment resolution={512} background={false} environmentIntensity={0.35}>
+      <pointLight
+        position={[0, 8, -4]}
+        intensity={scene.accentLightIntensity * 2}
+        color={scene.accentLightColor}
+        distance={20}
+      />
+
+      <spotLight
+        position={[0, 14, 0]}
+        angle={0.35}
+        penumbra={0.8}
+        intensity={0.6}
+        color={scene.accentLightColor}
+        castShadow={false}
+      />
+
+      <Environment resolution={512} background={false} environmentIntensity={0.45}>
         <Lightformer
-          intensity={2}
+          intensity={2.5}
           position={[0, 8, -6]}
-          scale={[12, 4, 1]}
+          scale={[14, 5, 1]}
           color={scene.keyLightColor}
         />
         <Lightformer
-          intensity={0.8}
+          intensity={1.2}
           position={[-8, 4, 2]}
-          scale={[4, 8, 1]}
+          scale={[4, 10, 1]}
           color={scene.fillLightColor}
         />
         <Lightformer
-          intensity={0.4}
+          intensity={0.6}
           position={[0, 2, 10]}
-          scale={[14, 2, 1]}
-          color="#1e293b"
+          scale={[16, 3, 1]}
+          color={scene.accentLightColor}
+        />
+        <Lightformer
+          intensity={0.4}
+          position={[8, 6, -2]}
+          scale={[3, 6, 1]}
+          color={scene.rimLightColor}
         />
       </Environment>
     </>

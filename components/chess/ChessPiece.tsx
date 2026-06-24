@@ -7,6 +7,8 @@ import type { Group } from "three";
 import { usePieceAnimation } from "@/hooks/use-piece-animation";
 import type { PieceThemeConfig } from "@/lib/chess/themes";
 import { useGameStore } from "@/stores/game-store";
+import { PieceAura } from "./effects/PieceAura";
+import { PieceTrail } from "./effects/PieceTrail";
 import { PieceHitBox } from "./InteractionPlane";
 import { PieceGeometry } from "./piece-geometries";
 
@@ -36,20 +38,26 @@ export function ChessPiece({
   const lift = isSelected ? 0.22 : hovered ? 0.12 : 0;
   const emissiveBoost = isSelected ? 1.5 : hovered ? 1.15 : 1;
 
-  usePieceAnimation({
+  const { isMoving, trailPoints } = usePieceAnimation({
     groupRef,
     square,
     lastMove,
     lift,
   });
 
-  const handleSelect = (e: ThreeEvent<MouseEvent>) => {
+  const handleSelect = () => {
     selectSquare(square);
   };
 
   return (
     <group ref={groupRef}>
       <PieceHitBox onSelect={handleSelect} />
+
+      <PieceTrail
+        trailRef={trailPoints}
+        color={pieceTheme.selectionRing}
+        active={isMoving}
+      />
 
       <group
         onPointerOver={(e) => {
@@ -63,6 +71,12 @@ export function ChessPiece({
           material={material}
           emissiveBoost={emissiveBoost}
           glowColor={pieceTheme.selectionRing}
+        />
+
+        <PieceAura
+          color={pieceTheme.selectionRing}
+          active={isSelected || hovered}
+          intensity={isSelected ? "selected" : "hover"}
         />
 
         {isGuideFrom && !isSelected && (

@@ -1,4 +1,5 @@
-import { Chess, type Color } from "chess.js";
+import { Chess, type Color, type PieceSymbol } from "chess.js";
+import { tryMoveWithPromotion } from "../move-logic";
 import type { ChessLesson } from "./types";
 
 export function getStepColor(stepIndex: number): Color {
@@ -25,16 +26,17 @@ export function tryMove(
   chess: Chess,
   from: string,
   to: string,
-): { ok: boolean; san?: string } {
-  const moves = chess.moves({ square: from as never, verbose: true });
-  const target = moves.find((m) => m.to === to);
-  if (!target) return { ok: false };
-
-  const promotion = target.promotion ? "q" : undefined;
-  const move = chess.move({ from, to, promotion });
-  if (!move) return { ok: false };
-
-  return { ok: true, san: move.san };
+  promotion?: PieceSymbol,
+): { ok: boolean; san?: string; needsPromotion?: boolean } {
+  const result = tryMoveWithPromotion(
+    chess,
+    from as never,
+    to as never,
+    promotion,
+  );
+  if (result.needsPromotion) return { ok: false, needsPromotion: true };
+  if (!result.ok) return { ok: false };
+  return { ok: true, san: result.san };
 }
 
 export function advanceOpponentMoves(

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Syne } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,10 +12,16 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const syne = Syne({
+  variable: "--font-heading",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+});
+
 export const metadata: Metadata = {
-  title: "Chess 3D Academy",
+  title: "Chess 3D Academy — Ajedrez 3D de lujo",
   description:
-    "An educational chess platform with high-quality 3D visualization to deepen your understanding of tactics and strategy.",
+    "El tablero de ajedrez 3D más elegante y futurista. Cristal luminoso, atmósfera cinematográfica y academia integrada.",
 };
 
 export default function RootLayout({
@@ -26,9 +32,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${syne.variable} dark h-full antialiased`}
     >
-      <body className="min-h-full overflow-hidden">{children}</body>
+      <body className="min-h-full">{children}</body>
     </html>
   );
 }

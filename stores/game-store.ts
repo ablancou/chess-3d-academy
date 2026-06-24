@@ -1,4 +1,4 @@
-import { Chess, type Move, type Square } from "chess.js";
+import { Chess, type Move, type PieceSymbol, type Square } from "chess.js";
 import { create } from "zustand";
 import { computeGuideSuggestion } from "@/lib/chess/guide/suggest";
 import { getGameStatus } from "@/lib/chess/game-status";
@@ -6,26 +6,40 @@ import { getLessonById } from "@/lib/chess/lessons";
 import {
   advanceOpponentMoves,
   isStudentTurn,
-  tryMove,
 } from "@/lib/chess/lessons/engine";
 import type {
   AppMode,
   ChessLesson,
   GuideSuggestion,
 } from "@/lib/chess/lessons/types";
-import type { BoardPiece, GameStatus, GuideHighlight, LastMove } from "@/lib/chess/types";
+import {
+  buildLastMoveFromVerbose,
+  isPromotionTarget,
+  tryMoveWithPromotion,
+} from "@/lib/chess/move-logic";
+import type {
+  BoardPiece,
+  GameStatus,
+  GuideHighlight,
+  LastMove,
+  PromotionPending,
+} from "@/lib/chess/types";
 
 interface GameStore {
   chess: Chess;
   selectedSquare: Square | null;
   legalTargets: Square[];
   lastMove: LastMove | null;
+  moveTimestamp: number;
   moveHistory: Move[];
 
   board: BoardPiece[];
   turn: "w" | "b";
   status: GameStatus;
   fen: string;
+
+  spectacularMode: boolean;
+  promotionPending: PromotionPending | null;
 
   mode: AppMode;
   guideEnabled: boolean;
@@ -41,6 +55,8 @@ interface GameStore {
   resetGame: () => void;
   setMode: (mode: AppMode) => void;
   toggleGuide: (enabled?: boolean) => void;
+  toggleSpectacular: (enabled?: boolean) => void;
+  completePromotion: (piece: PieceSymbol) => void;
   startLesson: (lessonId: string) => void;
   exitLesson: () => void;
   applyGuideMove: () => void;
@@ -119,12 +135,27 @@ function commitState(
   return { ...base, ...guide };
 }
 
+function applyMove(
+  chess: Chess,
+  from: Square,
+  to: Square,
+  promotion?: PieceSymbol,
+): { ok: boolean; lastMove?: LastMove } {
+  const result = tryMoveWithPromotion(chess, from, to, promotion);
+  if (!result.ok || !result.move) return { ok: false };
+  return { ok: true, lastMove: buildLastMoveFromVerbose(result.move) };
+}
+
 export const useGameStore = create<GameStore>((set, get) => ({
   chess: new Chess(),
   selectedSquare: null,
   legalTargets: [],
   lastMove: null,
+  moveTimestamp: 0,
   ...syncFromChess(new Chess()),
+
+  spectacularMode: false,
+  promotionPending: null,
 
   mode: "play",
   guideEnabled: false,
@@ -135,6 +166,34 @@ export const useGameStore = create<GameStore>((set, get) => ({
   lessonStepIndex: 0,
   lessonFeedback: null,
   lessonComplete: false,
+
+  toggleSpectacular: (enabled) => {
+    set({ spectacularMode: enabled ?? !get().spectacularMode });
+  },
+
+  completePromotion: (piece) => {
+    const { promotionPending, chess } = get();
+    if (!promotionPending) return;
+
+    const { from, to } = promotionPending;
+    const result = applyMove(chess, from, to, piece);
+    if (!result.ok || !result.lastMove) return;
+
+    set(
+      commitState(
+        chess,
+        {
+          selectedSquare: null,
+          legalTargets: [],
+          lastMove: result.lastMove,
+          moveTimestamp: Date.now(),
+          promotionPending: null,
+          lessonFeedback: null,
+        },
+        get,
+      ),
+    );
+  },
 
   refreshGuide: () => {
     const guide = updateGuide(get());
@@ -199,7 +258,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 to: advanced.lastMove.to as Square,
               }
             : null,
+          moveTimestamp: advanced.lastMove ? Date.now() : 0,
           guideEnabled: true,
+          promotionPending: null,
         },
         get,
       ),
@@ -221,6 +282,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
           selectedSquare: null,
           legalTargets: [],
           lastMove: null,
+          moveTimestamp: 0,
+          promotionPending: null,
         },
         get,
       ),
@@ -256,6 +319,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     if (selectedSquare && legalTargets.includes(square)) {
+      if (isPromotionTarget(chess, selectedSquare, square)) {
+        set({
+          promotionPending: { from: selectedSquare, to: square },
+          selectedSquare: null,
+          legalTargets: [],
+        });
+        return;
+      }
+
       if (mode === "lesson" && activeLessonId) {
         const lesson = getLessonById(activeLessonId);
         if (!lesson) return;
@@ -263,14 +335,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (!isStudentTurn(lesson, lessonStepIndex)) return;
 
         const expected = lesson.steps[lessonStepIndex];
-        const result = tryMove(chess, selectedSquare, square);
+        const result = applyMove(chess, selectedSquare, square);
 
         if (!result.ok) {
           set({ lessonFeedback: "Movimiento ilegal." });
           return;
         }
 
-        if (result.san !== expected.move) {
+        if (result.lastMove?.san !== expected.move) {
           chess.undo();
           set({
             selectedSquare: null,
@@ -304,6 +376,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 from: animMove.from as Square,
                 to: animMove.to as Square,
               },
+              moveTimestamp: Date.now(),
               lessonStepIndex: nextIndex,
               lessonFeedback: isComplete
                 ? "¡Lección completada! Dominas esta línea."
@@ -316,15 +389,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return;
       }
 
-      const result = tryMove(chess, selectedSquare, square);
-      if (result.ok) {
+      const result = applyMove(chess, selectedSquare, square);
+      if (result.ok && result.lastMove) {
         set(
           commitState(
             chess,
             {
               selectedSquare: null,
               legalTargets: [],
-              lastMove: { from: selectedSquare, to: square },
+              lastMove: result.lastMove,
+              moveTimestamp: Date.now(),
               lessonFeedback: null,
             },
             get,
@@ -368,6 +442,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
           selectedSquare: null,
           legalTargets: [],
           lastMove: null,
+          moveTimestamp: 0,
+          promotionPending: null,
           lessonFeedback: null,
           lessonComplete: false,
         },

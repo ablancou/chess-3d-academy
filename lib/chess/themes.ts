@@ -75,7 +75,7 @@ const glass = (
   ior: 1.5,
   opacity: 0.92,
   emissive: "#0a1220",
-  emissiveIntensity: 0.06,
+  emissiveIntensity: 0.1,
   clearcoat: 1,
   clearcoatRoughness: 0.02,
   ...overrides,
@@ -83,19 +83,19 @@ const glass = (
 
 function createScene(accent: string, rim = "#94a3b8"): SceneThemeConfig {
   return {
-    background: "#050a12",
+    background: "#030712",
     backgroundGradient:
-      "radial-gradient(ellipse 75% 55% at 50% 38%, #0c1524 0%, #050a12 68%)",
-    fog: "#050a12",
-    fogNear: 60,
-    fogFar: 100,
-    ambientIntensity: 0.18,
+      "radial-gradient(ellipse 80% 60% at 50% 35%, #0f172a 0%, #030712 72%)",
+    fog: "#030712",
+    fogNear: 18,
+    fogFar: 55,
+    ambientIntensity: 0.22,
     keyLightColor: "#f1f5f9",
-    keyLightIntensity: 2.1,
+    keyLightIntensity: 2.4,
     fillLightColor: accent,
-    fillLightIntensity: 0.18,
+    fillLightIntensity: 0.28,
     accentLightColor: accent,
-    accentLightIntensity: 0.22,
+    accentLightIntensity: 0.35,
     rimLightColor: rim,
     environment: "studio",
   };

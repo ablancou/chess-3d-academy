@@ -1,7 +1,9 @@
 "use client";
 
-import { RotateCcw } from "lucide-react";
+import Link from "next/link";
+import { Clapperboard, Crown, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   Card,
   CardContent,
@@ -26,11 +28,20 @@ export function GameSidebar() {
   const mode = useGameStore((s) => s.mode);
   const resetGame = useGameStore((s) => s.resetGame);
   const exitLesson = useGameStore((s) => s.exitLesson);
+  const spectacularMode = useGameStore((s) => s.spectacularMode);
+  const toggleSpectacular = useGameStore((s) => s.toggleSpectacular);
 
   return (
-    <aside className="flex h-full w-[24rem] shrink-0 flex-col border-l border-border bg-card">
+    <aside className="flex h-auto max-h-[45vh] w-full shrink-0 flex-col border-t border-border bg-card md:h-full md:max-h-none md:w-[24rem] md:border-t-0 md:border-l">
       <div className="border-b border-border px-6 py-5">
-        <h1 className="text-lg font-semibold tracking-tight">
+        <Link
+          href="/"
+          className="group flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <Crown className="size-3.5 text-indigo-400 transition-colors group-hover:text-indigo-300" />
+          <span className="text-xs tracking-wider uppercase">Inicio</span>
+        </Link>
+        <h1 className="mt-3 font-heading text-lg font-semibold tracking-tight">
           Chess 3D Academy
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -64,6 +75,27 @@ export function GameSidebar() {
             </Card>
 
             <ThemePicker />
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Clapperboard className="size-4 text-indigo-400" />
+                  Modo espectacular
+                </CardTitle>
+                <CardDescription>
+                  Cámara cinematográfica automática con órbitas y close-ups
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
+                  {spectacularMode ? "Activo" : "Manual"}
+                </span>
+                <Switch
+                  checked={spectacularMode}
+                  onCheckedChange={(v) => toggleSpectacular(v)}
+                />
+              </CardContent>
+            </Card>
 
             <Card className="flex-1">
               <CardHeader className="pb-3">

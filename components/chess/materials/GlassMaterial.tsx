@@ -30,9 +30,15 @@ export function GlassMaterial({
       emissiveIntensity={config.emissiveIntensity * emissiveBoost}
       clearcoat={config.clearcoat ?? 1}
       clearcoatRoughness={config.clearcoatRoughness ?? 0.02}
-      envMapIntensity={1.6}
-      reflectivity={0.9}
-      specularIntensity={1.2}
+      envMapIntensity={2.2}
+      reflectivity={1}
+      specularIntensity={1.5}
+      sheen={0.8}
+      sheenRoughness={0.15}
+      sheenColor={config.accent ?? config.color}
+      iridescence={0.35}
+      iridescenceIOR={1.3}
+      iridescenceThicknessRange={[100, 400]}
     />
   );
 }

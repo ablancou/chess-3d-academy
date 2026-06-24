@@ -11,6 +11,17 @@ export interface BoardPiece {
 export interface LastMove {
   from: Square;
   to: Square;
+  san?: string;
+  flags?: string;
+  isCastling?: boolean;
+  isEnPassant?: boolean;
+  isPromotion?: boolean;
+  captured?: boolean;
+}
+
+export interface PromotionPending {
+  from: Square;
+  to: Square;
 }
 
 export type GameStatus =

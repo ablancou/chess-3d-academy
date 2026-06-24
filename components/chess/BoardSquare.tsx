@@ -6,6 +6,7 @@ import { Edges } from "@react-three/drei";
 import { squareToPosition } from "@/lib/chess/coordinates";
 import type { BoardThemeConfig } from "@/lib/chess/themes";
 import { useGameStore } from "@/stores/game-store";
+import { PulsingRing } from "./effects/PulsingRing";
 import { InteractionPlane } from "./InteractionPlane";
 import { GlassMaterial } from "./materials/GlassMaterial";
 
@@ -89,17 +90,18 @@ export function BoardSquare({
         </mesh>
       )}
 
-      {isLegalTarget && (
-        <group position={[0, 0.066, 0]}>
-          <mesh rotation={[-Math.PI / 2, 0, 0]}>
-            <ringGeometry args={[0.14, 0.2, 32]} />
-            <meshBasicMaterial color={theme.legalMove} transparent opacity={0.85} />
-          </mesh>
-          <mesh rotation={[-Math.PI / 2, 0, 0]}>
-            <circleGeometry args={[0.06, 24]} />
-            <meshBasicMaterial color={theme.legalMove} transparent opacity={0.5} />
-          </mesh>
-        </group>
+      {isLegalTarget && <PulsingRing color={theme.legalMove} />}
+
+      {isLastMove && (
+        <mesh position={[0, 0.069, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.38, 0.42, 48]} />
+          <meshBasicMaterial
+            color={theme.lastMove}
+            transparent
+            opacity={0.5}
+            depthWrite={false}
+          />
+        </mesh>
       )}
 
       <InteractionPlane
