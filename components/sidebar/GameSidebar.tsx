@@ -14,12 +14,15 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGameStore } from "@/stores/game-store";
+import { CoachPanel } from "./CoachPanel";
+import { OpeningPanel } from "./OpeningPanel";
 import { GuidePanel } from "./GuidePanel";
 import { LessonCatalog } from "./LessonCatalog";
 import { LessonPanel } from "./LessonPanel";
 import { MoveHistory } from "./MoveHistory";
 import { ThemePicker } from "./ThemePicker";
 import { TurnIndicator } from "./TurnIndicator";
+import { MultiplayerPanel } from "./MultiplayerPanel";
 
 export function GameSidebar() {
   const turn = useGameStore((s) => s.turn);
@@ -73,6 +76,10 @@ export function GameSidebar() {
                 <TurnIndicator turn={turn} status={status} />
               </CardContent>
             </Card>
+
+            <MultiplayerPanel />
+            <OpeningPanel />
+            <CoachPanel />
 
             <ThemePicker />
 

@@ -8,6 +8,7 @@ import {
   Gem,
   Layers3,
   Sparkles,
+  Trophy,
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -69,16 +70,28 @@ export function LandingPage() {
             Chess 3D Academy
           </span>
         </div>
-        <Button
-          asChild
-          variant="outline"
-          className="border-indigo-500/40 bg-white/5 text-white backdrop-blur-sm hover:bg-indigo-500/25 hover:text-white"
-        >
-          <Link href="/play">
-            Jugar ahora
-            <ArrowRight className="size-4" />
-          </Link>
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            asChild
+            variant="ghost"
+            className="text-slate-300 hover:bg-white/5 hover:text-white"
+          >
+            <Link href="/journey">
+              <Trophy className="mr-2 size-4" />
+              Aprender
+            </Link>
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            className="border-indigo-500/40 bg-white/5 text-white backdrop-blur-sm hover:bg-indigo-500/25 hover:text-white"
+          >
+            <Link href="/play">
+              Jugar ahora
+              <ArrowRight className="size-4" />
+            </Link>
+          </Button>
+        </div>
       </nav>
 
       <section className="relative z-10 grid min-h-[calc(100vh-5rem)] grid-cols-1 items-center gap-8 px-6 pb-16 md:grid-cols-2 md:gap-4 md:px-12 lg:gap-8">

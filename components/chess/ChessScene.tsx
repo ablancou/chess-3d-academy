@@ -11,8 +11,7 @@ import { useGameStore } from "@/stores/game-store";
 import { useThemeStore } from "@/stores/theme-store";
 import { ChessBoard } from "./ChessBoard";
 import { HolographicGrid } from "./HolographicGrid";
-import { SceneAtmosphere } from "./SceneAtmosphere";
-import { SceneBackdrop } from "./SceneBackdrop";
+import { EnvironmentManager } from "./EnvironmentManager";
 import { SceneEffects } from "./SceneEffects";
 import { SceneLighting } from "./SceneLighting";
 
@@ -61,8 +60,7 @@ function SceneContent({
 
   return (
     <>
-      <SceneAtmosphere scene={theme.scene} />
-      <SceneBackdrop scene={theme.scene} />
+      <EnvironmentManager />
       <HolographicGrid color={theme.board.gridGlow} />
       <SceneLighting scene={theme.scene} />
       <ChessBoard />

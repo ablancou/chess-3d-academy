@@ -1,5 +1,6 @@
 import { Chess, type Move, type PieceSymbol, type Square } from "chess.js";
 import { create } from "zustand";
+import { audioManager } from "@/lib/audio/audio-manager";
 import { computeGuideSuggestion } from "@/lib/chess/guide/suggest";
 import { getGameStatus } from "@/lib/chess/game-status";
 import { getLessonById } from "@/lib/chess/lessons";
@@ -51,7 +52,22 @@ interface GameStore {
   lessonFeedback: string | null;
   lessonComplete: boolean;
 
+  coachEnabled: boolean;
+  coachFeedback: import("@/lib/chess/engine/coach").CoachFeedback | null;
+  engineEvaluation: import("@/lib/chess/engine/stockfish").EngineEvaluation | null;
+  moveQualities: { w: string[]; b: string[] };
+  currentOpening: import("@/lib/chess/openings/explorer").OpeningInfo | null;
+  openingAlternatives: import("@/lib/chess/openings/explorer").ExplorerMove[];
+  toggleCoach: (enabled?: boolean) => void;
+  setCoachFeedback: (
+    feedback: import("@/lib/chess/engine/coach").CoachFeedback | null, 
+    evaluation: import("@/lib/chess/engine/stockfish").EngineEvaluation | null,
+    opening?: import("@/lib/chess/openings/explorer").OpeningInfo | null,
+    alternatives?: import("@/lib/chess/openings/explorer").ExplorerMove[]
+  ) => void;
+
   selectSquare: (square: Square) => void;
+  applyPeerMove: (from: Square, to: Square, promotion?: PieceSymbol) => void;
   resetGame: () => void;
   setMode: (mode: AppMode) => void;
   toggleGuide: (enabled?: boolean) => void;
@@ -140,10 +156,30 @@ function applyMove(
   from: Square,
   to: Square,
   promotion?: PieceSymbol,
-): { ok: boolean; lastMove?: LastMove } {
+): { ok: boolean; lastMove?: LastMove; moveObj?: Move } {
   const result = tryMoveWithPromotion(chess, from, to, promotion);
   if (!result.ok || !result.move) return { ok: false };
-  return { ok: true, lastMove: buildLastMoveFromVerbose(result.move) };
+  return { ok: true, lastMove: buildLastMoveFromVerbose(result.move), moveObj: result.move };
+}
+
+function playMoveSound(chess: Chess, move: Move) {
+  if (chess.isGameOver()) {
+    audioManager.play("gameEnd");
+    return;
+  }
+  if (chess.inCheck()) {
+    audioManager.play("check");
+    return;
+  }
+  if (move.flags.includes("c") || move.flags.includes("e")) {
+    audioManager.play("capture");
+    return;
+  }
+  if (move.flags.includes("k") || move.flags.includes("q")) {
+    audioManager.play("castle");
+    return;
+  }
+  audioManager.play("move");
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -162,10 +198,43 @@ export const useGameStore = create<GameStore>((set, get) => ({
   guideSuggestion: null,
   guideHighlight: null,
 
+  coachEnabled: true, // Default to true so users see it
+  coachFeedback: null,
+  engineEvaluation: null,
+  moveQualities: { w: [], b: [] },
+  currentOpening: null,
+  openingAlternatives: [],
+
   activeLessonId: null,
   lessonStepIndex: 0,
   lessonFeedback: null,
   lessonComplete: false,
+
+  toggleCoach: (enabled) => {
+    set({ coachEnabled: enabled ?? !get().coachEnabled });
+  },
+
+  setCoachFeedback: (feedback, evaluation, opening, alternatives) => {
+    set((state) => {
+      const newQualities = { ...state.moveQualities };
+      if (feedback && state.lastMove) {
+        // Record quality for the player who just moved (the opposite of the current turn)
+        const playerWhoMoved = state.turn === "w" ? "b" : "w";
+        // Only push if we haven't already for this move index to prevent duplicates
+        const moveIndex = Math.floor(state.moveHistory.length / 2);
+        if (newQualities[playerWhoMoved].length <= moveIndex) {
+          newQualities[playerWhoMoved].push(feedback.quality);
+        }
+      }
+      return { 
+        coachFeedback: feedback, 
+        engineEvaluation: evaluation,
+        moveQualities: newQualities,
+        currentOpening: opening !== undefined ? opening : state.currentOpening,
+        openingAlternatives: alternatives !== undefined ? alternatives : state.openingAlternatives
+      };
+    });
+  },
 
   toggleSpectacular: (enabled) => {
     set({ spectacularMode: enabled ?? !get().spectacularMode });
@@ -177,7 +246,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const { from, to } = promotionPending;
     const result = applyMove(chess, from, to, piece);
-    if (!result.ok || !result.lastMove) return;
+    if (!result.ok || !result.lastMove || !result.moveObj) return;
+
+    playMoveSound(chess, result.moveObj);
+    
+    // Broadcast via WebRTC
+    import("@/lib/multiplayer/peer-service").then((m) => {
+      m.peerService.sendMove(from, to, piece);
+    });
 
     set(
       commitState(
@@ -390,7 +466,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
 
       const result = applyMove(chess, selectedSquare, square);
-      if (result.ok && result.lastMove) {
+      if (result.ok && result.lastMove && result.moveObj) {
+        playMoveSound(chess, result.moveObj);
+        
+        // Broadcast via WebRTC
+        import("@/lib/multiplayer/peer-service").then((m) => {
+          m.peerService.sendMove(selectedSquare, square);
+        });
+
         set(
           commitState(
             chess,
@@ -423,6 +506,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     set({ selectedSquare: null, legalTargets: [] });
+  },
+
+  applyPeerMove: (from, to, promotion) => {
+    const { chess } = get();
+    const result = applyMove(chess, from, to, promotion);
+    if (result.ok && result.lastMove && result.moveObj) {
+      playMoveSound(chess, result.moveObj);
+      set(
+        commitState(
+          chess,
+          {
+            selectedSquare: null,
+            legalTargets: [],
+            lastMove: result.lastMove,
+            moveTimestamp: Date.now(),
+            lessonFeedback: null,
+          },
+          get,
+        ),
+      );
+    }
   },
 
   resetGame: () => {

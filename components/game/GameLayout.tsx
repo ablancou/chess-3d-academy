@@ -28,6 +28,9 @@ const ChessScene = dynamic(
   },
 );
 
+import { CoachEngine } from "@/components/chess/CoachEngine";
+import { GameReviewModal } from "@/components/game/GameReviewModal";
+
 export function GameLayout() {
   useEffect(() => {
     installChessTestBridge();
@@ -36,9 +39,11 @@ export function GameLayout() {
   return (
     <div className="flex h-[100dvh] w-full flex-col overflow-hidden bg-[#030712] md:flex-row max-md:landscape:flex-row">
       <main className="relative order-1 min-h-[55dvh] min-w-0 flex-1 md:min-h-0 max-md:landscape:min-h-0">
+        <CoachEngine />
         <ChessScene />
         <ControlsOverlay />
         <PromotionPicker />
+        <GameReviewModal />
       </main>
       <GameSidebar />
     </div>
