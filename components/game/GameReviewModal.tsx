@@ -38,11 +38,15 @@ export function GameReviewModal() {
   const resetGame = useGameStore((s) => s.resetGame);
   const addXP = useProgressStore((s) => s.addXP);
   
+  const isGameOver = status === "checkmate" || status === "stalemate" || status === "draw";
+  const isCheckmate = status === "checkmate";
+  const isDraw = status === "draw" || status === "stalemate";
+
   const [isOpen, setIsOpen] = useState(false);
   const [xpAwarded, setXpAwarded] = useState(false);
 
   useEffect(() => {
-    if (mode === "play" && status.isGameOver && !isOpen) {
+    if (mode === "play" && isGameOver && !isOpen) {
       setIsOpen(true);
       
       // Award XP for finishing a game
@@ -50,13 +54,13 @@ export function GameReviewModal() {
         addXP(50);
         setXpAwarded(true);
       }
-    } else if (!status.isGameOver) {
+    } else if (!isGameOver) {
       setIsOpen(false);
       setXpAwarded(false);
     }
-  }, [status.isGameOver, mode, isOpen, xpAwarded, addXP]);
+  }, [isGameOver, mode, isOpen, xpAwarded, addXP]);
 
-  if (!status.isGameOver) return null;
+  if (!isGameOver) return null;
 
   const whiteAccuracy = calculateAccuracy(moveQualities.w);
   const blackAccuracy = calculateAccuracy(moveQualities.b);
@@ -81,8 +85,8 @@ export function GameReviewModal() {
             Fin de la partida
           </DialogTitle>
           <p className="text-center text-zinc-400 text-sm mt-2">
-            {status.isCheckmate ? "¡Jaque Mate!" : 
-             status.isDraw ? "Empate" : "Juego terminado"}
+            {isCheckmate ? "¡Jaque Mate!" : 
+             isDraw ? "Empate" : "Juego terminado"}
           </p>
         </DialogHeader>
 
