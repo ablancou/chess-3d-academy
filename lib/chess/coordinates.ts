@@ -16,12 +16,13 @@ export function squareToRankIndex(square: Square): number {
   return parseInt(square[1], 10) - 1;
 }
 
-/** Convert a chess square to a 3D position on the board surface. */
 export function squareToPosition(square: Square): [number, number, number] {
   const file = squareToFileIndex(square);
   const rank = squareToRankIndex(square);
+  // a=0 should be left (-X), h=7 should be right (+X)
   const x = file - BOARD_HALF + SQUARE_SIZE / 2;
-  const z = rank - BOARD_HALF + SQUARE_SIZE / 2;
+  // rank 1=0 should be bottom (near, +Z), rank 8=7 should be top (far, -Z)
+  const z = BOARD_HALF - SQUARE_SIZE / 2 - rank;
   return [x, 0, z];
 }
 

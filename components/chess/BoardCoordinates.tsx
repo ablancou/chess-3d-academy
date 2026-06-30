@@ -15,7 +15,8 @@ export function BoardCoordinates({ color }: { color: string }) {
       {FILES.split("").map((file, i) => (
         <Text
           key={`file-${file}`}
-          position={[i - 3.5, y, -(offset + 0.3)]}
+          position={[i - 3.5, y, offset + 0.3]} // +Z (near camera)
+          rotation={[-Math.PI / 2, 0, 0]}
           fontSize={0.15}
           color={color}
           anchorX="center"
@@ -30,7 +31,8 @@ export function BoardCoordinates({ color }: { color: string }) {
       {RANKS.split("").map((rank, i) => (
         <Text
           key={`rank-${rank}`}
-          position={[-offset - 0.3, y, i - 3.5]}
+          position={[-offset - 0.3, y, 3.5 - i]} // z matched to new rank mapping
+          rotation={[-Math.PI / 2, 0, 0]}
           fontSize={0.15}
           color={color}
           anchorX="center"

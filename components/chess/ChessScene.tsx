@@ -105,7 +105,7 @@ export function ChessScene({
     <Canvas
       shadows
       dpr={[1, 2]}
-      camera={{ position: [0, 11, -9], fov: 38, near: 0.1, far: 100 }}
+      camera={{ position: [0, 11, 9], fov: 38, near: 0.1, far: 100 }}
       gl={{
         antialias: true,
         alpha: false,
