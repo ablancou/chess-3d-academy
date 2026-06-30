@@ -157,6 +157,7 @@ dist
 
 # private project notes (vision, roadmap — local only)
 PROJECT.md
+roadmap.md
 
 # misc
 .DS_Store
