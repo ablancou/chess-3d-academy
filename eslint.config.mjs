@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Assets estáticos (incluye stockfish.js minificado que revienta el parser)
+    "public/**",
   ]),
 ]);
 

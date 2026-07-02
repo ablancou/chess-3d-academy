@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import {
   AdditiveBlending,
@@ -9,7 +9,7 @@ import {
   Line,
   LineBasicMaterial,
 } from "three";
-import type { Vector3 } from "three";
+import type { Group, Vector3 } from "three";
 
 interface SimplePieceTrailProps {
   trailRef: React.RefObject<Vector3[]>;
@@ -22,7 +22,11 @@ export function SimplePieceTrail({
   isMovingRef,
   color,
 }: SimplePieceTrailProps) {
-  const lineObj = useMemo(() => {
+  const groupRef = useRef<Group>(null);
+  const lineRef = useRef<Line | null>(null);
+  const opacity = useRef(1);
+
+  useEffect(() => {
     const geometry = new BufferGeometry();
     const material = new LineBasicMaterial({
       color,
@@ -33,12 +37,23 @@ export function SimplePieceTrail({
     });
     const line = new Line(geometry, material);
     line.visible = false;
-    return line;
+
+    lineRef.current = line;
+    const group = groupRef.current;
+    group?.add(line);
+
+    return () => {
+      group?.remove(line);
+      geometry.dispose();
+      material.dispose();
+      lineRef.current = null;
+    };
   }, [color]);
 
-  const opacity = useRef(1);
-
   useFrame((_, delta) => {
+    const lineObj = lineRef.current;
+    if (!lineObj) return;
+
     const points = trailRef.current;
     const moving = isMovingRef.current;
     const mat = lineObj.material as LineBasicMaterial;
@@ -63,5 +78,5 @@ export function SimplePieceTrail({
     }
   });
 
-  return <primitive object={lineObj} />;
+  return <group ref={groupRef} />;
 }

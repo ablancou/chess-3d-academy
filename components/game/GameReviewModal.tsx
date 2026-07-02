@@ -9,63 +9,28 @@ import {
 } from "@/components/ui/dialog";
 import { Trophy, XCircle, AlertTriangle, CheckCircle2, Target } from "lucide-react";
 import { useProgressStore } from "@/stores/progress-store";
-import { useEffect, useState } from "react";
-
-function calculateAccuracy(qualities: string[]) {
-  if (qualities.length === 0) return 100;
-  
-  const scores: Record<string, number> = {
-    "book": 100,
-    "excellent": 100,
-    "good": 85,
-    "inaccuracy": 60,
-    "mistake": 30,
-    "blunder": 0
-  };
-
-  const totalScore = qualities.reduce((acc, q) => acc + (scores[q] ?? 80), 0);
-  return Math.round(totalScore / qualities.length);
-}
+import { calculateAccuracy } from "@/lib/chess/engine/accuracy";
+import { getNodeById } from "@/lib/progression/journey";
+import { useEffect, useRef, useState } from "react";
 
 function countQualities(qualities: string[], match: string[]) {
   return qualities.filter((q) => match.includes(q)).length;
 }
 
-export function GameReviewModal() {
-  const status = useGameStore((s) => s.status);
-  const mode = useGameStore((s) => s.mode);
-  const moveQualities = useGameStore((s) => s.moveQualities);
-  const resetGame = useGameStore((s) => s.resetGame);
-  const addXP = useProgressStore((s) => s.addXP);
-  
-  const isGameOver = status === "checkmate" || status === "stalemate" || status === "draw";
-  const isCheckmate = status === "checkmate";
-  const isDraw = status === "draw" || status === "stalemate";
-
-  const [isOpen, setIsOpen] = useState(false);
-  const [xpAwarded, setXpAwarded] = useState(false);
-
-  useEffect(() => {
-    if (mode === "play" && isGameOver && !isOpen) {
-      setIsOpen(true);
-      
-      // Award XP for finishing a game
-      if (!xpAwarded) {
-        addXP(50);
-        setXpAwarded(true);
-      }
-    } else if (!isGameOver) {
-      setIsOpen(false);
-      setXpAwarded(false);
-    }
-  }, [isGameOver, mode, isOpen, xpAwarded, addXP]);
-
-  if (!isGameOver) return null;
-
-  const whiteAccuracy = calculateAccuracy(moveQualities.w);
-  const blackAccuracy = calculateAccuracy(moveQualities.b);
-
-  const StatRow = ({ label, icon: Icon, wCount, bCount, colorClass }: any) => (
+function StatRow({
+  label,
+  icon: Icon,
+  wCount,
+  bCount,
+  colorClass,
+}: {
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  wCount: number;
+  bCount: number;
+  colorClass: string;
+}) {
+  return (
     <div className="flex items-center justify-between text-sm py-2 border-b border-white/5">
       <div className={`w-8 text-center font-bold ${colorClass}`}>{wCount}</div>
       <div className="flex flex-1 items-center justify-center gap-2 text-zinc-400">
@@ -75,9 +40,60 @@ export function GameReviewModal() {
       <div className={`w-8 text-center font-bold ${colorClass}`}>{bCount}</div>
     </div>
   );
+}
+
+export function GameReviewModal() {
+  const status = useGameStore((s) => s.status);
+  const mode = useGameStore((s) => s.mode);
+  const moveQualities = useGameStore((s) => s.moveQualities);
+  const journeyNodeId = useGameStore((s) => s.journeyNodeId);
+  const resetGame = useGameStore((s) => s.resetGame);
+
+  const isGameOver = status === "checkmate" || status === "stalemate" || status === "draw";
+  const isCheckmate = status === "checkmate";
+  const isDraw = status === "draw" || status === "stalemate";
+
+  const whiteAccuracy = calculateAccuracy(moveQualities.w);
+  const blackAccuracy = calculateAccuracy(moveQualities.b);
+  const xpForGame = 30 + Math.round((whiteAccuracy + blackAccuracy) / 4);
+
+  // Modal abierto = fin de partida y no descartado; se resetea al empezar otra
+  const [dismissed, setDismissed] = useState(false);
+  const [prevGameOver, setPrevGameOver] = useState(isGameOver);
+  if (prevGameOver !== isGameOver) {
+    setPrevGameOver(isGameOver);
+    setDismissed(false);
+  }
+  const isOpen = mode === "play" && isGameOver && !dismissed;
+
+  // Recompensas: una sola vez por partida terminada
+  const awardedRef = useRef(false);
+  useEffect(() => {
+    if (!isGameOver || mode !== "play") {
+      awardedRef.current = false;
+      return;
+    }
+    if (awardedRef.current) return;
+    awardedRef.current = true;
+
+    const progress = useProgressStore.getState();
+    progress.addXP(xpForGame);
+    progress.recordEvent("game-finished");
+    if (isCheckmate) progress.recordEvent("checkmate");
+
+    // Completar nodo del journey (práctica: cualquier final; jefe: solo mate)
+    if (journeyNodeId) {
+      const node = getNodeById(journeyNodeId);
+      if (node && (node.type === "practice" || (node.type === "boss" && isCheckmate))) {
+        progress.completeNode(journeyNodeId);
+      }
+    }
+  }, [isGameOver, mode, isCheckmate, journeyNodeId, xpForGame]);
+
+  if (!isGameOver) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && setDismissed(true)}>
       <DialogContent className="sm:max-w-[425px] border-indigo-500/20 bg-[#080d1a] text-white">
         <DialogHeader>
           <DialogTitle className="text-center text-2xl font-bold flex flex-col items-center gap-2">
@@ -114,12 +130,12 @@ export function GameReviewModal() {
             <StatRow 
               label="Brillantes / Excelentes" 
               icon={CheckCircle2} 
-              wCount={countQualities(moveQualities.w, ["excellent", "book"])} 
-              bCount={countQualities(moveQualities.b, ["excellent", "book"])} 
+              wCount={countQualities(moveQualities.w, ["brilliant", "best", "excellent", "book"])} 
+              bCount={countQualities(moveQualities.b, ["brilliant", "best", "excellent", "book"])} 
               colorClass="text-emerald-400"
             />
             <StatRow 
-              label="Inprecisiones" 
+              label="Imprecisiones" 
               icon={AlertTriangle} 
               wCount={countQualities(moveQualities.w, ["inaccuracy"])} 
               bCount={countQualities(moveQualities.b, ["inaccuracy"])} 
@@ -134,16 +150,14 @@ export function GameReviewModal() {
             />
           </div>
 
-          {xpAwarded && (
-            <div className="text-center text-sm font-semibold text-yellow-400 animate-pulse">
-              +50 XP ganados
-            </div>
-          )}
+          <div className="text-center text-sm font-semibold text-yellow-400 animate-pulse">
+            +{xpForGame} XP ganados
+          </div>
 
           <div className="flex justify-center pt-2">
             <button
               onClick={() => {
-                setIsOpen(false);
+                setDismissed(true);
                 resetGame();
               }}
               className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-full font-medium transition-colors"

@@ -4,7 +4,7 @@ import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Float, Sparkles, Stars } from "@react-three/drei";
 import { AdditiveBlending } from "three";
-import type { Group, Mesh } from "three";
+import type { Group } from "three";
 import type { SceneThemeConfig } from "@/lib/chess/themes";
 import { AuroraPlane } from "./shaders/AuroraPlane";
 
@@ -68,11 +68,16 @@ function OrbitalRings({ color }: { color: string }) {
 function FloatingParticles({ color }: { color: string }) {
   const count = 200;
   const positions = useMemo(() => {
+    // PRNG determinista (función pura del índice) para un render estable
+    const rand = (n: number) => {
+      const s = ((1337 + n * 7919) * 1103515245 + 12345) & 0x7fffffff;
+      return s / 0x7fffffff;
+    };
     const arr = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
-      arr[i * 3] = (Math.random() - 0.5) * 28;
-      arr[i * 3 + 1] = Math.random() * 16 + 0.5;
-      arr[i * 3 + 2] = (Math.random() - 0.5) * 28;
+      arr[i * 3] = (rand(i * 3) - 0.5) * 28;
+      arr[i * 3 + 1] = rand(i * 3 + 1) * 16 + 0.5;
+      arr[i * 3 + 2] = (rand(i * 3 + 2) - 0.5) * 28;
     }
     return arr;
   }, []);

@@ -1,18 +1,25 @@
 "use client";
 
 import { MousePointerClick, Move3d, ZoomIn } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
+
+const MOBILE_QUERY = "(max-width: 767px)";
+
+function subscribeToMedia(callback: () => void) {
+  const media = window.matchMedia(MOBILE_QUERY);
+  media.addEventListener("change", callback);
+  return () => media.removeEventListener("change", callback);
+}
 
 export function ControlsOverlay() {
   const [dismissed, setDismissed] = useState(false);
+  const isMobile = useSyncExternalStore(
+    subscribeToMedia,
+    () => window.matchMedia(MOBILE_QUERY).matches,
+    () => false,
+  );
 
-  useEffect(() => {
-    if (window.matchMedia("(max-width: 767px)").matches) {
-      setDismissed(true);
-    }
-  }, []);
-
-  if (dismissed) return null;
+  if (dismissed || isMobile) return null;
 
   return (
     <div className="pointer-events-none absolute bottom-4 left-4 z-10 max-w-xs md:bottom-6 md:left-6 md:max-w-sm">

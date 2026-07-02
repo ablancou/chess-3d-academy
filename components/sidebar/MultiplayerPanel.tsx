@@ -31,7 +31,11 @@ export function MultiplayerPanel() {
     };
 
     peerService.onMoveReceived = (from, to, promotion) => {
-      applyPeerMove(from as any, to as any, promotion as any);
+      applyPeerMove(
+        from as Parameters<typeof applyPeerMove>[0],
+        to as Parameters<typeof applyPeerMove>[1],
+        promotion as Parameters<typeof applyPeerMove>[2],
+      );
     };
 
     // Auto-join if URL has ?host=id

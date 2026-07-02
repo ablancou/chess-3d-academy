@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Shield, Swords } from "lucide-react";
+import { BookOpen, CheckCircle2, Heart, Shield, Swords } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -17,14 +17,17 @@ import {
 } from "@/lib/chess/lessons";
 import { cn } from "@/lib/utils";
 import { useGameStore } from "@/stores/game-store";
+import { useProgressStore } from "@/stores/progress-store";
 
 function LessonButton({
   lesson,
   isActive,
+  isCompleted,
   onSelect,
 }: {
   lesson: ChessLesson;
   isActive: boolean;
+  isCompleted: boolean;
   onSelect: () => void;
 }) {
   return (
@@ -40,7 +43,12 @@ function LessonButton({
     >
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="text-sm font-medium">{lesson.name}</p>
+          <p className="flex items-center gap-1.5 text-sm font-medium">
+            {isCompleted && (
+              <CheckCircle2 className="size-3.5 shrink-0 text-emerald-400" />
+            )}
+            {lesson.name}
+          </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {lesson.description}
           </p>
@@ -68,12 +76,14 @@ function LessonGroup({
   icon: Icon,
   lessons,
   activeLessonId,
+  completedLessons,
   onSelect,
 }: {
   title: string;
   icon: React.ComponentType<{ className?: string }>;
   lessons: ChessLesson[];
   activeLessonId: string | null;
+  completedLessons: string[];
   onSelect: (id: string) => void;
 }) {
   return (
@@ -90,6 +100,7 @@ function LessonGroup({
             key={lesson.id}
             lesson={lesson}
             isActive={activeLessonId === lesson.id}
+            isCompleted={completedLessons.includes(lesson.id)}
             onSelect={() => onSelect(lesson.id)}
           />
         ))}
@@ -101,6 +112,10 @@ function LessonGroup({
 export function LessonCatalog() {
   const activeLessonId = useGameStore((s) => s.activeLessonId);
   const startLesson = useGameStore((s) => s.startLesson);
+  const completedLessons = useProgressStore((s) => s.completedLessons);
+  const hearts = useProgressStore((s) => s.hearts);
+
+  const outOfHearts = hearts === 0;
 
   return (
     <Card>
@@ -114,13 +129,22 @@ export function LessonCatalog() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {outOfHearts && (
+          <div className="mb-3 flex items-center gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">
+            <Heart className="size-4 shrink-0" />
+            Sin vidas: se regeneran con el tiempo (1 cada 30 min).
+          </div>
+        )}
         <ScrollArea className="h-[28rem] pr-3">
-          <div className="space-y-5">
+          <div
+            className={cn("space-y-5", outOfHearts && "pointer-events-none opacity-50")}
+          >
             <LessonGroup
               title="Aperturas"
               icon={Swords}
               lessons={OPENING_LESSONS}
               activeLessonId={activeLessonId}
+              completedLessons={completedLessons}
               onSelect={startLesson}
             />
             <LessonGroup
@@ -128,6 +152,7 @@ export function LessonCatalog() {
               icon={Shield}
               lessons={DEFENSE_LESSONS}
               activeLessonId={activeLessonId}
+              completedLessons={completedLessons}
               onSelect={startLesson}
             />
           </div>

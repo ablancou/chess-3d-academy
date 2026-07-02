@@ -25,6 +25,9 @@ import type {
   LastMove,
   PromotionPending,
 } from "@/lib/chess/types";
+import { uciToMoveInfo } from "@/lib/chess/engine/uci";
+import { getNodeByLessonId } from "@/lib/progression/journey";
+import { useProgressStore } from "@/stores/progress-store";
 
 interface GameStore {
   chess: Chess;
@@ -51,6 +54,9 @@ interface GameStore {
   lessonStepIndex: number;
   lessonFeedback: string | null;
   lessonComplete: boolean;
+  lessonMistakes: number;
+  /** Nodo del journey que se está jugando actualmente (si se vino desde el mapa) */
+  journeyNodeId: string | null;
 
   coachEnabled: boolean;
   coachFeedback: import("@/lib/chess/engine/coach").CoachFeedback | null;
@@ -66,6 +72,11 @@ interface GameStore {
     alternatives?: import("@/lib/chess/openings/explorer").ExplorerMove[]
   ) => void;
 
+  /** Pista del coach solicitada por el usuario (mejor jugada del motor) */
+  coachHint: GuideSuggestion | null;
+  hintLoading: boolean;
+  requestHint: () => Promise<void>;
+
   selectSquare: (square: Square) => void;
   applyPeerMove: (from: Square, to: Square, promotion?: PieceSymbol) => void;
   resetGame: () => void;
@@ -73,9 +84,11 @@ interface GameStore {
   toggleGuide: (enabled?: boolean) => void;
   toggleSpectacular: (enabled?: boolean) => void;
   completePromotion: (piece: PieceSymbol) => void;
-  startLesson: (lessonId: string) => void;
+  startLesson: (lessonId: string, journeyNodeId?: string) => void;
+  setJourneyNode: (nodeId: string | null) => void;
   exitLesson: () => void;
   applyGuideMove: () => void;
+  applySanMove: (san: string) => void;
   refreshGuide: () => void;
 }
 
@@ -143,12 +156,38 @@ function commitState(
   get: () => GameStore,
 ): Partial<GameStore> {
   const base = {
+    coachHint: null,
     ...syncFromChess(chess),
     ...partial,
   };
   const merged = { ...get(), ...base };
   const guide = updateGuide(merged as GameStore);
   return { ...base, ...guide };
+}
+
+/** Efectos de progresión (XP, misiones, logros) al completar una lección. */
+function handleLessonCompleted(
+  lessonId: string,
+  journeyNodeId: string | null,
+  mistakes: number,
+) {
+  const progress = useProgressStore.getState();
+  const firstTime = !progress.completedLessons.includes(lessonId);
+
+  progress.recordEvent("lesson-completed");
+  if (mistakes === 0) {
+    progress.recordEvent("perfect-lesson");
+  }
+
+  if (firstTime) {
+    progress.markLessonCompleted(lessonId);
+    progress.addXP(30);
+  }
+
+  const nodeId = journeyNodeId ?? getNodeByLessonId(lessonId)?.id;
+  if (nodeId) {
+    progress.completeNode(nodeId);
+  }
 }
 
 function applyMove(
@@ -209,6 +248,49 @@ export const useGameStore = create<GameStore>((set, get) => ({
   lessonStepIndex: 0,
   lessonFeedback: null,
   lessonComplete: false,
+  lessonMistakes: 0,
+  journeyNodeId: null,
+
+  coachHint: null,
+  hintLoading: false,
+
+  requestHint: async () => {
+    const { chess, hintLoading, status } = get();
+    if (hintLoading || status === "checkmate" || status === "stalemate") return;
+
+    const { stockfishEngine } = await import("@/lib/chess/engine/stockfish");
+    if (!stockfishEngine) return;
+
+    set({ hintLoading: true });
+    try {
+      await stockfishEngine.init();
+      const fen = chess.fen();
+      const evaluation = await stockfishEngine.evaluatePosition(fen, 14);
+      // Si la posición cambió mientras el motor pensaba, descarta la pista
+      if (get().chess.fen() !== fen) return;
+
+      const info = uciToMoveInfo(fen, evaluation.bestmove);
+      if (!info) return;
+
+      set({
+        coachHint: {
+          san: info.san,
+          from: info.from,
+          to: info.to,
+          explanation: `El motor recomienda ${info.san} en esta posición.`,
+          source: "engine",
+          score: evaluation.score,
+        },
+      });
+      useProgressStore.getState().recordEvent("hint");
+    } finally {
+      set({ hintLoading: false });
+    }
+  },
+
+  setJourneyNode: (nodeId) => {
+    set({ journeyNodeId: nodeId });
+  },
 
   toggleCoach: (enabled) => {
     set({ coachEnabled: enabled ?? !get().coachEnabled });
@@ -291,6 +373,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         lessonStepIndex: 0,
         lessonFeedback: null,
         lessonComplete: false,
+        lessonMistakes: 0,
       });
       get().resetGame();
       return;
@@ -298,7 +381,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ mode });
   },
 
-  startLesson: (lessonId) => {
+  startLesson: (lessonId, journeyNodeId) => {
     const lesson = getLessonById(lessonId);
     if (!lesson) return;
 
@@ -326,6 +409,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
             ? "¡Lección completada! Excelente trabajo."
             : feedback,
           lessonComplete: isComplete,
+          lessonMistakes: 0,
+          journeyNodeId: journeyNodeId ?? get().journeyNodeId,
           selectedSquare: null,
           legalTargets: [],
           lastMove: advanced.lastMove
@@ -355,6 +440,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
           lessonStepIndex: 0,
           lessonFeedback: null,
           lessonComplete: false,
+          lessonMistakes: 0,
+          journeyNodeId: null,
           selectedSquare: null,
           legalTargets: [],
           lastMove: null,
@@ -378,6 +465,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     set({ selectedSquare: from, legalTargets: targets });
     get().selectSquare(to);
+  },
+
+  applySanMove: (san) => {
+    const { chess, mode } = get();
+    if (mode !== "play") return;
+
+    const match = chess
+      .moves({ verbose: true })
+      .find((m) => m.san === san);
+    if (!match) return;
+
+    set({
+      selectedSquare: match.from,
+      legalTargets: getLegalTargets(chess, match.from),
+    });
+    get().selectSquare(match.to);
   },
 
   selectSquare: (square) => {
@@ -420,10 +523,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
         if (result.lastMove?.san !== expected.move) {
           chess.undo();
+          const progress = useProgressStore.getState();
+          progress.loseHeart();
+          const heartsLeft = useProgressStore.getState().hearts;
           set({
             selectedSquare: null,
             legalTargets: [],
-            lessonFeedback: `Incorrecto. La jugada esperada era ${expected.move}. ${expected.explanation}`,
+            lessonMistakes: state.lessonMistakes + 1,
+            lessonFeedback: `Incorrecto (-1 ❤). La jugada esperada era ${expected.move}. ${expected.explanation}${heartsLeft === 0 ? " Te has quedado sin vidas: se regeneran con el tiempo." : ""}`,
             ...syncFromChess(chess),
           });
           get().refreshGuide();
@@ -442,6 +549,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
           to: square,
         };
 
+        useProgressStore.getState().recordEvent("move");
+        if (isComplete) {
+          handleLessonCompleted(
+            activeLessonId,
+            state.journeyNodeId,
+            state.lessonMistakes,
+          );
+        }
+
         set(
           commitState(
             chess,
@@ -455,7 +571,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
               moveTimestamp: Date.now(),
               lessonStepIndex: nextIndex,
               lessonFeedback: isComplete
-                ? "¡Lección completada! Dominas esta línea."
+                ? state.lessonMistakes === 0
+                  ? "¡Lección perfecta! Dominas esta línea sin un solo error."
+                  : "¡Lección completada! Dominas esta línea."
                 : feedback,
               lessonComplete: isComplete,
             },
@@ -468,7 +586,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const result = applyMove(chess, selectedSquare, square);
       if (result.ok && result.lastMove && result.moveObj) {
         playMoveSound(chess, result.moveObj);
-        
+        useProgressStore.getState().recordEvent("move");
+
         // Broadcast via WebRTC
         import("@/lib/multiplayer/peer-service").then((m) => {
           m.peerService.sendMove(selectedSquare, square);

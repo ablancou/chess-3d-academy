@@ -14,6 +14,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGameStore } from "@/stores/game-store";
+import { ProgressHUD } from "@/components/journey/ProgressHUD";
 import { CoachPanel } from "./CoachPanel";
 import { OpeningPanel } from "./OpeningPanel";
 import { GuidePanel } from "./GuidePanel";
@@ -37,19 +38,27 @@ export function GameSidebar() {
   return (
     <aside className="order-2 flex max-h-[45dvh] w-full shrink-0 flex-col overflow-hidden border-t border-border bg-card md:order-none md:h-full md:max-h-none md:w-[24rem] md:border-t-0 md:border-l max-md:landscape:max-h-none max-md:landscape:w-[17rem]">
       <div className="border-b border-border px-6 py-5">
-        <Link
-          href="/"
-          className="group flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <Crown className="size-3.5 text-indigo-400 transition-colors group-hover:text-indigo-300" />
-          <span className="text-xs tracking-wider uppercase">Inicio</span>
-        </Link>
+        <div className="flex items-center justify-between gap-2">
+          <Link
+            href="/"
+            className="group flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Crown className="size-3.5 text-indigo-400 transition-colors group-hover:text-indigo-300" />
+            <span className="text-xs tracking-wider uppercase">Inicio</span>
+          </Link>
+          <Link
+            href="/journey"
+            className="text-xs tracking-wider uppercase text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Mapa
+          </Link>
+        </div>
         <h1 className="mt-3 font-heading text-lg font-semibold tracking-tight">
           Chess 3D Academy
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Blancas abajo · Negras arriba · Vista estándar
-        </p>
+        <div className="mt-2">
+          <ProgressHUD compact />
+        </div>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">

@@ -1,0 +1,112 @@
+import type { AchievementDef } from "./types";
+
+export const ACHIEVEMENTS: AchievementDef[] = [
+  {
+    id: "first-game",
+    title: "Primera Batalla",
+    description: "Termina tu primera partida",
+    icon: "swords",
+    rewardGems: 10,
+    check: (s) => s.gamesPlayed >= 1,
+  },
+  {
+    id: "first-lesson",
+    title: "Estudiante Aplicado",
+    description: "Completa tu primera lección",
+    icon: "graduation-cap",
+    rewardGems: 10,
+    check: (s) => s.lessonsCompleted >= 1,
+  },
+  {
+    id: "first-checkmate",
+    title: "¡Jaque Mate!",
+    description: "Termina una partida en jaque mate",
+    icon: "crown",
+    rewardGems: 15,
+    check: (s) => s.gamesCheckmate >= 1,
+  },
+  {
+    id: "excellent-10",
+    title: "Ojo de Águila",
+    description: "Acumula 10 jugadas excelentes",
+    icon: "target",
+    rewardGems: 20,
+    check: (s) => s.excellentMoves >= 10,
+  },
+  {
+    id: "excellent-50",
+    title: "Maestro Táctico",
+    description: "Acumula 50 jugadas excelentes",
+    icon: "zap",
+    rewardGems: 50,
+    check: (s) => s.excellentMoves >= 50,
+  },
+  {
+    id: "lessons-5",
+    title: "Teórico",
+    description: "Completa 5 lecciones",
+    icon: "book-open",
+    rewardGems: 25,
+    check: (s) => s.lessonsCompleted >= 5,
+  },
+  {
+    id: "lessons-15",
+    title: "Enciclopedia Viviente",
+    description: "Completa 15 lecciones",
+    icon: "library",
+    rewardGems: 60,
+    check: (s) => s.lessonsCompleted >= 15,
+  },
+  {
+    id: "perfect-lesson",
+    title: "Sin Fallos",
+    description: "Completa una lección sin errores",
+    icon: "sparkles",
+    rewardGems: 20,
+    check: (s) => s.perfectLessons >= 1,
+  },
+  {
+    id: "streak-3",
+    title: "En Racha",
+    description: "Mantén una racha de 3 días",
+    icon: "flame",
+    rewardGems: 15,
+    check: (s) => s.bestStreak >= 3,
+  },
+  {
+    id: "streak-7",
+    title: "Semana de Fuego",
+    description: "Mantén una racha de 7 días",
+    icon: "flame",
+    rewardGems: 40,
+    check: (s) => s.bestStreak >= 7,
+  },
+  {
+    id: "moves-100",
+    title: "Manos Rápidas",
+    description: "Realiza 100 movimientos en total",
+    icon: "move",
+    rewardGems: 15,
+    check: (s) => s.totalMoves >= 100,
+  },
+  {
+    id: "moves-500",
+    title: "Veterano del Tablero",
+    description: "Realiza 500 movimientos en total",
+    icon: "shield",
+    rewardGems: 40,
+    check: (s) => s.totalMoves >= 500,
+  },
+  {
+    id: "games-10",
+    title: "Competidor",
+    description: "Juega 10 partidas completas",
+    icon: "trophy",
+    rewardGems: 30,
+    check: (s) => s.gamesPlayed >= 10,
+  },
+];
+
+export function getAchievementById(id: string): AchievementDef | undefined {
+  return ACHIEVEMENTS.find((a) => a.id === id);
+}

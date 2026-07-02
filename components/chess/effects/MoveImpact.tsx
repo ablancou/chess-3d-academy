@@ -22,13 +22,19 @@ function ImpactBurst({ square, color }: { square: Square; color: string }) {
   const bornAt = useRef<number | null>(null);
 
   const particles = useMemo(() => {
-    return Array.from({ length: PARTICLE_COUNT }, () => ({
-      angle: Math.random() * Math.PI * 2,
-      speed: 0.4 + Math.random() * 0.8,
-      ySpeed: 0.2 + Math.random() * 0.6,
-      size: 0.02 + Math.random() * 0.04,
+    // PRNG determinista (función pura del índice) para un render estable
+    const base = square.charCodeAt(0) * 131 + square.charCodeAt(1) * 17 + 7;
+    const rand = (n: number) => {
+      const s = ((base + n * 7919) * 1103515245 + 12345) & 0x7fffffff;
+      return s / 0x7fffffff;
+    };
+    return Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
+      angle: rand(i * 4) * Math.PI * 2,
+      speed: 0.4 + rand(i * 4 + 1) * 0.8,
+      ySpeed: 0.2 + rand(i * 4 + 2) * 0.6,
+      size: 0.02 + rand(i * 4 + 3) * 0.04,
     }));
-  }, []);
+  }, [square]);
 
   const [x, , z] = squareToPosition(square);
 

@@ -1,53 +1,199 @@
 import { type EngineEvaluation } from "./stockfish";
 
-export type MoveQuality = "excellent" | "good" | "inaccuracy" | "mistake" | "blunder" | "book";
+export type MoveQuality =
+  | "brilliant"
+  | "best"
+  | "excellent"
+  | "good"
+  | "book"
+  | "inaccuracy"
+  | "mistake"
+  | "blunder";
 
 export interface CoachFeedback {
   quality: MoveQuality;
   message: string;
+  /** Cuántos puntos (peones) se ganaron o perdieron con la jugada */
+  delta: number;
+  /** La mejor jugada que había en la posición anterior (SAN), si se conoce */
+  betterMove?: string;
+}
+
+export const QUALITY_LABELS: Record<MoveQuality, string> = {
+  brilliant: "¡¡Brillante!!",
+  best: "¡La mejor!",
+  excellent: "¡Excelente!",
+  good: "Buena",
+  book: "Teoría",
+  inaccuracy: "Imprecisión",
+  mistake: "Error",
+  blunder: "Error grave",
+};
+
+interface CoachOptions {
+  /** La jugada realizada en formato UCI (ej. "e2e4") */
+  playedUci?: string;
+  /** SAN de la mejor jugada según el motor en la posición anterior */
+  bestMoveSan?: string | null;
+  /** ¿La partida sigue dentro de una línea teórica conocida? */
+  isBookMove?: boolean;
+}
+
+function pick(messages: string[], seed: number): string {
+  return messages[Math.abs(seed) % messages.length];
 }
 
 export function evaluateMoveQuality(
   prevEval: EngineEvaluation | null,
   newEval: EngineEvaluation,
-  turn: "w" | "b"
+  turn: "w" | "b",
+  options: CoachOptions = {},
 ): CoachFeedback {
+  const { playedUci, bestMoveSan, isBookMove } = options;
+
+  if (isBookMove) {
+    return {
+      quality: "book",
+      message:
+        "Jugada de teoría. Sigues una línea conocida por los maestros: desarrollo, centro y seguridad del rey.",
+      delta: 0,
+    };
+  }
+
   if (!prevEval) {
-    return { quality: "book", message: "¡Buena apertura! Mantén el control del centro." };
+    return {
+      quality: "good",
+      message: "Buen comienzo. Controla el centro y desarrolla tus piezas.",
+      delta: 0,
+    };
   }
 
-  // Calculate eval diff from the perspective of the player who just moved
-  // If turn is 'w', it means black just moved, so we evaluate black's move (new - prev for black)
-  // Wait, if it's white's turn to move now, the move we are evaluating was made by Black.
-  // Eval is always from white's perspective.
-  const prevScore = prevEval.mate ? (prevEval.mate > 0 ? 10000 : -10000) : prevEval.score;
-  const newScore = newEval.mate ? (newEval.mate > 0 ? 10000 : -10000) : newEval.score;
+  const prevScore = prevEval.mate
+    ? prevEval.mate > 0
+      ? 10000
+      : -10000
+    : prevEval.score;
+  const newScore = newEval.mate
+    ? newEval.mate > 0
+      ? 10000
+      : -10000
+    : newEval.score;
 
-  // The diff for the player who just moved (if white is to move, black just played)
-  let diff = 0;
-  if (turn === "w") {
-    // Black just played. If newScore is lower than prevScore, it's good for black.
-    diff = prevScore - newScore;
-  } else {
-    // White just played. If newScore is higher than prevScore, it's good for white.
-    diff = newScore - prevScore;
+  // La evaluación siempre es desde la perspectiva de las blancas.
+  // Si ahora mueven las blancas (turn === "w"), la jugada evaluada fue de las negras.
+  const delta = turn === "w" ? prevScore - newScore : newScore - prevScore;
+  const seed = Math.round((prevScore + newScore) * 100);
+
+  // ¿Encontró la mejor jugada del motor?
+  const playedBest =
+    playedUci !== undefined &&
+    prevEval.bestmove !== "" &&
+    playedUci === prevEval.bestmove;
+
+  const suffix = bestMoveSan ? ` La mejor opción era ${bestMoveSan}.` : "";
+
+  if (delta < -3.0) {
+    return {
+      quality: "blunder",
+      message:
+        pick(
+          [
+            "¡Cuidado! Esa jugada regala mucho material o posición.",
+            "Un error grave: la evaluación cayó en picada.",
+            "Esa jugada cambia el rumbo de la partida en tu contra.",
+          ],
+          seed,
+        ) + suffix,
+      delta,
+      betterMove: bestMoveSan ?? undefined,
+    };
+  }
+  if (delta < -1.5) {
+    return {
+      quality: "mistake",
+      message:
+        pick(
+          [
+            "Un error: había opciones claramente mejores.",
+            "Esa jugada cede una ventaja importante al rival.",
+            "El motor no está de acuerdo: pierdes terreno con esto.",
+          ],
+          seed,
+        ) + suffix,
+      delta,
+      betterMove: bestMoveSan ?? undefined,
+    };
+  }
+  if (delta < -0.6) {
+    return {
+      quality: "inaccuracy",
+      message:
+        pick(
+          [
+            "Una imprecisión. Has cedido algo de iniciativa.",
+            "Jugable, pero había una continuación más precisa.",
+            "Pequeño desliz: el rival puede activarse ahora.",
+          ],
+          seed,
+        ) + suffix,
+      delta,
+      betterMove: bestMoveSan ?? undefined,
+    };
   }
 
-  // diff > 0 means the move improved the position (or opponent blundered previously).
-  // diff < 0 means the move worsened the position.
+  if (playedBest && delta > 1.5) {
+    return {
+      quality: "brilliant",
+      message: pick(
+        [
+          "¡¡Brillante!! Encontraste el mejor golpe de la posición.",
+          "¡Espectacular! Exactamente lo que el motor quería jugar.",
+          "¡Una joya táctica! La mejor jugada con gran efecto.",
+        ],
+        seed,
+      ),
+      delta,
+    };
+  }
+  if (playedBest) {
+    return {
+      quality: "best",
+      message: pick(
+        [
+          "¡La mejor jugada! Coincides con el motor.",
+          "Precisión de máquina: era exactamente la mejor opción.",
+          "Perfecto. No había nada mejor en esta posición.",
+        ],
+        seed,
+      ),
+      delta,
+    };
+  }
+  if (delta > 0.5) {
+    return {
+      quality: "excellent",
+      message: pick(
+        [
+          "¡Excelente jugada! Aumentas tu ventaja.",
+          "¡Muy bien visto! La posición mejora claramente.",
+          "¡Gran decisión! Estás dominando el tablero.",
+        ],
+        seed,
+      ),
+      delta,
+    };
+  }
 
-  if (diff < -3.0) {
-    return { quality: "blunder", message: "¡Un error grave! Acabas de perder mucha ventaja." };
-  }
-  if (diff < -1.5) {
-    return { quality: "mistake", message: "Esa jugada es un error. Hay opciones mucho mejores." };
-  }
-  if (diff < -0.8) {
-    return { quality: "inaccuracy", message: "Una imprecisión. Has cedido algo de iniciativa." };
-  }
-  if (diff > 0.5) {
-    return { quality: "excellent", message: "¡Excelente jugada! Estás dominando la posición." };
-  }
-  
-  return { quality: "good", message: "Buena jugada. Mantienes el equilibrio." };
+  return {
+    quality: "good",
+    message: pick(
+      [
+        "Buena jugada. Mantienes el equilibrio.",
+        "Sólido. La posición sigue bajo control.",
+        "Correcto. Sigue desarrollando tu plan.",
+      ],
+      seed,
+    ),
+    delta,
+  };
 }

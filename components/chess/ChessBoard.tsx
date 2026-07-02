@@ -29,6 +29,7 @@ export function ChessBoard() {
   const moveTimestamp = useGameStore((s) => s.moveTimestamp);
   const guideHighlight = useGameStore((s) => s.guideHighlight);
   const guideEnabled = useGameStore((s) => s.guideEnabled);
+  const coachHint = useGameStore((s) => s.coachHint);
   const status = useGameStore((s) => s.status);
   const turn = useGameStore((s) => s.turn);
   const fen = useGameStore((s) => s.fen);
@@ -100,6 +101,16 @@ export function ChessBoard() {
 
       {guideEnabled && guideHighlight && (
         <GuideArrow highlight={guideHighlight} color="#fbbf24" />
+      )}
+
+      {coachHint && (
+        <GuideArrow
+          highlight={{
+            from: coachHint.from as Square,
+            to: coachHint.to as Square,
+          }}
+          color="#22d3ee"
+        />
       )}
 
       {board.map((piece) => (
