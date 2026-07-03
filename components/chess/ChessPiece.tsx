@@ -40,6 +40,7 @@ export function ChessPiece({
   const { isMoving, trailPoints } = usePieceAnimation({
     groupRef,
     square,
+    pieceType: type,
     lastMove,
     lift,
   });

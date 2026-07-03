@@ -64,15 +64,27 @@ export function findKingSquare(chess: Chess, color: Color): Square | null {
 }
 
 export function buildLastMoveFromVerbose(move: Move) {
+  const isEnPassant = isEnPassantMove(move);
+  const capturedSquare = isEnPassant
+    ? (`${move.to[0]}${move.from[1]}` as Square)
+    : (move.to as Square);
+
   return {
     from: move.from as Square,
     to: move.to as Square,
     san: move.san,
     flags: move.flags,
     isCastling: isCastlingMove(move),
-    isEnPassant: isEnPassantMove(move),
+    isEnPassant,
     isPromotion: move.flags.includes("p"),
     captured: Boolean(move.captured),
+    capturedPiece: move.captured
+      ? {
+          color: (move.color === "w" ? "b" : "w") as Color,
+          type: move.captured as PieceSymbol,
+        }
+      : undefined,
+    capturedSquare: move.captured ? capturedSquare : undefined,
   };
 }
 

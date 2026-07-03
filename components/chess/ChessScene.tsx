@@ -6,6 +6,7 @@ import { ContactShadows, OrbitControls } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { ACESFilmicToneMapping, MOUSE, SRGBColorSpace } from "three";
 import { useCameraAnimation } from "@/hooks/use-camera-animation";
+import { qualityDpr, useVisualQuality } from "@/hooks/use-visual-quality";
 import { getThemeById } from "@/lib/chess/themes";
 import { useGameStore } from "@/stores/game-store";
 import { useThemeStore } from "@/stores/theme-store";
@@ -14,6 +15,7 @@ import { HolographicGrid } from "./HolographicGrid";
 import { EnvironmentManager } from "./EnvironmentManager";
 import { SceneEffects } from "./SceneEffects";
 import { SceneLighting } from "./SceneLighting";
+import type { VisualQuality } from "@/hooks/use-visual-quality";
 
 interface ChessSceneProps {
   autoRotate?: boolean;
@@ -23,7 +25,8 @@ interface ChessSceneProps {
 function SceneContent({
   autoRotate = false,
   showEffects = true,
-}: ChessSceneProps) {
+  quality,
+}: ChessSceneProps & { quality: VisualQuality }) {
   const themeId = useThemeStore((s) => s.themeId);
   const theme = getThemeById(themeId);
   const controlsRef = useRef<OrbitControlsImpl>(null);
@@ -58,6 +61,8 @@ function SceneContent({
     controls.autoRotateSpeed = 0.35;
   }, [autoRotate]);
 
+  const shadowRes = quality === "high" ? 2048 : quality === "medium" ? 1024 : 512;
+
   return (
     <>
       <EnvironmentManager />
@@ -67,12 +72,12 @@ function SceneContent({
 
       <ContactShadows
         position={[0, 0.001, 0]}
-        opacity={0.35}
+        opacity={quality === "high" ? 0.42 : 0.32}
         scale={14}
-        blur={2.2}
+        blur={quality === "high" ? 2.4 : 1.8}
         far={8}
         color="#000000"
-        resolution={2048}
+        resolution={shadowRes}
       />
 
       {(userControlsEnabled || autoRotate) && (
@@ -81,7 +86,7 @@ function SceneContent({
           makeDefault
           enabled={!autoRotate}
           enablePan={false}
-          minDistance={autoRotate ? 10 : 8}
+          minDistance={autoRotate ? 10 : quality === "low" ? 9 : 8}
           maxDistance={autoRotate ? 18 : 20}
           minPolarAngle={Math.PI / 6}
           maxPolarAngle={Math.PI / 2.15}
@@ -89,7 +94,9 @@ function SceneContent({
         />
       )}
 
-      {showEffects && <SceneEffects />}
+      {showEffects && quality !== "low" && (
+        <SceneEffects quality={quality} />
+      )}
     </>
   );
 }
@@ -100,14 +107,17 @@ export function ChessScene({
 }: ChessSceneProps) {
   const themeId = useThemeStore((s) => s.themeId);
   const theme = getThemeById(themeId);
+  const quality = useVisualQuality();
+  const dpr = qualityDpr(quality);
+  const fov = quality === "low" ? 42 : 38;
 
   return (
     <Canvas
       shadows
-      dpr={[1, 2]}
-      camera={{ position: [0, 11, 9], fov: 38, near: 0.1, far: 100 }}
+      dpr={dpr}
+      camera={{ position: [0, 11, 9], fov, near: 0.1, far: 100 }}
       gl={{
-        antialias: true,
+        antialias: quality !== "low",
         alpha: false,
         powerPreference: "high-performance",
       }}
@@ -116,7 +126,7 @@ export function ChessScene({
       onCreated={({ gl }) => {
         gl.outputColorSpace = SRGBColorSpace;
         gl.toneMapping = ACESFilmicToneMapping;
-        gl.toneMappingExposure = 1.28;
+        gl.toneMappingExposure = quality === "high" ? 1.32 : 1.22;
       }}
       onPointerMissed={() => {
         document.body.style.cursor = "auto";
@@ -124,7 +134,11 @@ export function ChessScene({
     >
       <color attach="background" args={[theme.scene.background]} />
       <Suspense fallback={null}>
-        <SceneContent autoRotate={autoRotate} showEffects={showEffects} />
+        <SceneContent
+          autoRotate={autoRotate}
+          showEffects={showEffects}
+          quality={quality}
+        />
       </Suspense>
     </Canvas>
   );

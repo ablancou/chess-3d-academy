@@ -18,6 +18,7 @@ import { CastleBurst } from "./effects/CastleBurst";
 import { CheckPulse } from "./effects/CheckPulse";
 import { EnPassantBurst } from "./effects/EnPassantBurst";
 import { MoveImpact } from "./effects/MoveImpact";
+import { CapturedPieceEffect } from "./effects/CapturedPieceEffect";
 
 export function ChessBoard() {
   const themeId = useThemeStore((s) => s.themeId);
@@ -56,7 +57,12 @@ export function ChessBoard() {
       <BoardAura color={theme.board.gridGlow} />
       <BoardBase theme={theme.board} />
       <BoardCoordinates color={theme.board.gridGlow} />
-      <MoveImpact lastMove={lastMove} color={theme.board.lastMove} />
+      <MoveImpact
+        lastMove={lastMove}
+        color={theme.board.lastMove}
+        isCapture={Boolean(lastMove?.captured)}
+      />
+      <CapturedPieceEffect lastMove={lastMove} moveTimestamp={moveTimestamp} />
 
       {lastMove?.isCastling && (
         <CastleBurst

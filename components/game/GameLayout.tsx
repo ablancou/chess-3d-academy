@@ -8,6 +8,8 @@ import { JourneyLauncher } from "@/components/game/JourneyLauncher";
 import { PromotionPicker } from "@/components/game/PromotionPicker";
 import { GameSidebar } from "@/components/sidebar/GameSidebar";
 import { AchievementToast } from "@/components/journey/AchievementToast";
+import { CoachEngine } from "@/components/chess/CoachEngine";
+import { GameReviewModal } from "@/components/game/GameReviewModal";
 
 const ChessScene = dynamic(
   () =>
@@ -30,17 +32,15 @@ const ChessScene = dynamic(
   },
 );
 
-import { CoachEngine } from "@/components/chess/CoachEngine";
-import { GameReviewModal } from "@/components/game/GameReviewModal";
-
 export function GameLayout() {
   useEffect(() => {
     installChessTestBridge();
   }, []);
 
   return (
-    <div className="flex h-[100dvh] w-full flex-col overflow-hidden bg-[#030712] md:flex-row max-md:landscape:flex-row">
-      <main className="relative order-1 min-h-[55dvh] min-w-0 flex-1 md:min-h-0 max-md:landscape:min-h-0">
+    <div className="safe-area flex h-[100dvh] w-full flex-col overflow-hidden bg-[#030712] md:flex-row max-md:landscape:flex-row">
+      {/* Tablero: arriba en portrait; izquierda en desktop/landscape */}
+      <main className="relative order-1 min-h-[52dvh] min-w-0 flex-1 md:min-h-0 max-md:landscape:min-h-0 max-md:landscape:flex-[1.2]">
         <Suspense fallback={null}>
           <JourneyLauncher />
         </Suspense>

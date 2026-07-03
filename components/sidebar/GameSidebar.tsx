@@ -36,8 +36,8 @@ export function GameSidebar() {
   const toggleSpectacular = useGameStore((s) => s.toggleSpectacular);
 
   return (
-    <aside className="order-2 flex max-h-[45dvh] w-full shrink-0 flex-col overflow-hidden border-t border-border bg-card md:order-none md:h-full md:max-h-none md:w-[24rem] md:border-t-0 md:border-l max-md:landscape:max-h-none max-md:landscape:w-[17rem]">
-      <div className="border-b border-border px-6 py-5">
+    <aside className="order-2 flex max-h-[48dvh] w-full shrink-0 flex-col overflow-hidden border-t border-border bg-card md:order-none md:h-full md:max-h-none md:w-[24rem] md:border-t-0 md:border-l max-md:landscape:max-h-none max-md:landscape:w-[15.5rem] max-md:landscape:border-l max-md:landscape:border-t-0">
+      <div className="border-b border-border px-4 py-4 sm:px-6 sm:py-5 max-md:landscape:px-3 max-md:landscape:py-3">
         <div className="flex items-center justify-between gap-2">
           <Link
             href="/"
@@ -53,7 +53,7 @@ export function GameSidebar() {
             Mapa
           </Link>
         </div>
-        <h1 className="mt-3 font-heading text-lg font-semibold tracking-tight">
+        <h1 className="mt-2 font-heading text-base font-semibold tracking-tight sm:mt-3 sm:text-lg max-md:landscape:text-sm">
           Chess 3D Academy
         </h1>
         <div className="mt-2">
@@ -61,7 +61,7 @@ export function GameSidebar() {
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 sm:gap-4 sm:p-4 max-md:landscape:gap-2 max-md:landscape:p-2">
         <GuidePanel />
         <LessonPanel />
 

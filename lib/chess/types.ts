@@ -17,6 +17,10 @@ export interface LastMove {
   isEnPassant?: boolean;
   isPromotion?: boolean;
   captured?: boolean;
+  /** Pieza capturada (para animación de desaparición) */
+  capturedPiece?: { color: Color; type: PieceSymbol };
+  /** Casilla donde estaba la pieza capturada (en passant ≠ destino) */
+  capturedSquare?: Square;
 }
 
 export interface PromotionPending {
